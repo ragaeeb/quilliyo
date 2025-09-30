@@ -2,17 +2,99 @@
 
 import { format } from 'date-fns';
 import Fuse from 'fuse.js';
-import { Plus, Save, Search, Trash2 } from 'lucide-react';
+import { Check, ChevronsUpDown, Plus, Save, Search, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
 import type { Notebook, Poem } from '@/types/notebook';
+
+function Combobox({
+    options,
+    value,
+    onChange,
+    placeholder,
+}: {
+    options: string[];
+    value: string;
+    onChange: (value: string) => void;
+    placeholder: string;
+}) {
+    const [open, setOpen] = useState(false);
+    const [search, setSearch] = useState('');
+    const [selectedValue, setSelectedValue] = useState(value);
+
+    useEffect(() => {
+        setSelectedValue(value);
+    }, [value]);
+
+    const filteredOptions = options.filter((option) => option.toLowerCase().includes(search.toLowerCase()));
+
+    return (
+        <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+                <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={open}
+                    className="mt-1.5 w-full justify-between"
+                >
+                    {selectedValue || placeholder}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-full p-0">
+                <Command>
+                    <CommandInput placeholder={`Search or type new...`} value={search} onValueChange={setSearch} />
+                    <CommandList>
+                        <CommandEmpty>
+                            <Button
+                                variant="ghost"
+                                className="w-full"
+                                onClick={() => {
+                                    if (search) {
+                                        setSelectedValue(search);
+                                        onChange(search);
+                                        setOpen(false);
+                                        setSearch('');
+                                    }
+                                }}
+                            >
+                                Create "{search}"
+                            </Button>
+                        </CommandEmpty>
+                        <CommandGroup>
+                            {filteredOptions.map((option) => (
+                                <CommandItem
+                                    key={option}
+                                    value={option}
+                                    onSelect={(currentValue) => {
+                                        setSelectedValue(currentValue);
+                                        onChange(currentValue);
+                                        setOpen(false);
+                                        setSearch('');
+                                    }}
+                                >
+                                    <Check
+                                        className={`mr-2 h-4 w-4 ${selectedValue === option ? 'opacity-100' : 'opacity-0'}`}
+                                    />
+                                    {option}
+                                </CommandItem>
+                            ))}
+                        </CommandGroup>
+                    </CommandList>
+                </Command>
+            </PopoverContent>
+        </Popover>
+    );
+}
 
 export default function Home() {
     const [notebook, setNotebook] = useState<Notebook>({ poems: [] });
@@ -263,130 +345,146 @@ export default function Home() {
             </div>
 
             <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-                <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
-                    <DialogHeader>
+                <DialogContent className="h-[95vh] max-h-[95vh] w-[95vw] max-w-[95vw] gap-0 p-0">
+                    <DialogHeader className="border-b px-6 pt-6 pb-4">
                         <DialogTitle>Edit Poem</DialogTitle>
                     </DialogHeader>
                     {selectedPoem && (
-                        <form onSubmit={handleFormSubmit} className="space-y-4">
-                            <div>
-                                <Label htmlFor="title">Title</Label>
-                                <Input id="title" name="title" defaultValue={selectedPoem.title} />
-                            </div>
-
-                            <div>
-                                <Label htmlFor="content">Content</Label>
-                                <Textarea
-                                    id="content"
-                                    name="content"
-                                    defaultValue={selectedPoem.content}
-                                    rows={10}
-                                    className="font-mono"
-                                />
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
+                        <form onSubmit={handleFormSubmit} className="flex h-[calc(95vh-80px)] flex-col">
+                            <div className="flex-1 space-y-6 overflow-y-auto px-6 py-4">
                                 <div>
-                                    <Label htmlFor="category">Category</Label>
+                                    <Label htmlFor="title">Title</Label>
                                     <Input
-                                        id="category"
-                                        name="category"
-                                        defaultValue={selectedPoem.category || ''}
-                                        list="categories"
-                                        placeholder="Select or create category"
+                                        id="title"
+                                        name="title"
+                                        defaultValue={selectedPoem.title}
+                                        className="mt-1.5"
                                     />
-                                    <datalist id="categories">
-                                        {allCategories.map((cat) => (
-                                            <option key={cat} value={cat} />
-                                        ))}
-                                    </datalist>
                                 </div>
 
                                 <div>
-                                    <Label htmlFor="chapter">Chapter</Label>
-                                    <Input
-                                        id="chapter"
-                                        name="chapter"
-                                        defaultValue={selectedPoem.chapter || ''}
-                                        list="chapters"
-                                        placeholder="Select or create chapter"
+                                    <Label htmlFor="content">Content</Label>
+                                    <Textarea
+                                        id="content"
+                                        name="content"
+                                        defaultValue={selectedPoem.content}
+                                        rows={15}
+                                        className="mt-1.5 min-h-[400px] font-mono"
                                     />
-                                    <datalist id="chapters">
-                                        {allChapters.map((chap) => (
-                                            <option key={chap} value={chap} />
-                                        ))}
-                                    </datalist>
                                 </div>
-                            </div>
 
-                            <div>
-                                <Label>Tags</Label>
-                                <div className="mb-2 flex flex-wrap gap-1">
-                                    {poemTags.map((tag, index) => (
-                                        <Badge
-                                            key={`${tag}-${index}`}
-                                            variant="secondary"
-                                            className="cursor-pointer"
-                                            onClick={() => setPoemTags(poemTags.filter((_, i) => i !== index))}
-                                        >
-                                            {tag} ×
-                                        </Badge>
-                                    ))}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <Label htmlFor="category">Category</Label>
+                                        <Combobox
+                                            options={allCategories}
+                                            value={selectedPoem.category || ''}
+                                            onChange={(value) => {
+                                                // This will be handled by the form submission
+                                                const input = document.getElementById('category') as HTMLInputElement;
+                                                if (input) input.value = value;
+                                            }}
+                                            placeholder="Select or create category"
+                                        />
+                                        <input
+                                            type="hidden"
+                                            id="category"
+                                            name="category"
+                                            defaultValue={selectedPoem.category || ''}
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <Label htmlFor="chapter">Chapter</Label>
+                                        <Combobox
+                                            options={allChapters}
+                                            value={selectedPoem.chapter || ''}
+                                            onChange={(value) => {
+                                                const input = document.getElementById('chapter') as HTMLInputElement;
+                                                if (input) input.value = value;
+                                            }}
+                                            placeholder="Select or create chapter"
+                                        />
+                                        <input
+                                            type="hidden"
+                                            id="chapter"
+                                            name="chapter"
+                                            defaultValue={selectedPoem.chapter || ''}
+                                        />
+                                    </div>
                                 </div>
-                                <Input
-                                    id="tagInput"
-                                    list="tags"
-                                    placeholder="Add tag (press Enter)"
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                            e.preventDefault();
-                                            const value = e.currentTarget.value.trim();
-                                            if (value && !poemTags.includes(value)) {
-                                                setPoemTags([...poemTags, value]);
-                                                e.currentTarget.value = '';
+
+                                <div>
+                                    <Label>Tags</Label>
+                                    <div className="mt-1.5 mb-2 flex flex-wrap gap-1.5">
+                                        {poemTags.map((tag) => (
+                                            <Badge
+                                                key={tag}
+                                                variant="secondary"
+                                                className="cursor-pointer hover:bg-destructive hover:text-destructive-foreground"
+                                                onClick={() => setPoemTags(poemTags.filter((t) => t !== tag))}
+                                            >
+                                                {tag} ×
+                                            </Badge>
+                                        ))}
+                                    </div>
+                                    <Input
+                                        id="tagInput"
+                                        list="tags"
+                                        placeholder="Add tag (press Enter)"
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                const value = e.currentTarget.value.trim();
+                                                if (value && !poemTags.includes(value)) {
+                                                    setPoemTags([...poemTags, value]);
+                                                    e.currentTarget.value = '';
+                                                }
                                             }
-                                        }
-                                    }}
-                                />
-                                <datalist id="tags">
-                                    {allTags.map((tag) => (
-                                        <option key={tag} value={tag} />
-                                    ))}
-                                </datalist>
-                                <input type="hidden" name="tags" value={JSON.stringify(poemTags)} />
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <Label htmlFor="createdOn">Created On</Label>
-                                    <Input
-                                        id="createdOn"
-                                        name="createdOn"
-                                        type="datetime-local"
-                                        defaultValue={
-                                            selectedPoem.createdOn
-                                                ? new Date(selectedPoem.createdOn).toISOString().slice(0, 16)
-                                                : ''
-                                        }
+                                        }}
                                     />
+                                    <datalist id="tags">
+                                        {allTags.map((tag) => (
+                                            <option key={tag} value={tag} />
+                                        ))}
+                                    </datalist>
+                                    <input type="hidden" name="tags" value={JSON.stringify(poemTags)} />
                                 </div>
 
-                                <div>
-                                    <Label htmlFor="lastUpdatedOn">Last Updated On</Label>
-                                    <Input
-                                        id="lastUpdatedOn"
-                                        name="lastUpdatedOn"
-                                        type="datetime-local"
-                                        defaultValue={
-                                            selectedPoem.lastUpdatedOn
-                                                ? new Date(selectedPoem.lastUpdatedOn).toISOString().slice(0, 16)
-                                                : ''
-                                        }
-                                    />
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <Label htmlFor="createdOn">Created On</Label>
+                                        <Input
+                                            id="createdOn"
+                                            name="createdOn"
+                                            type="date"
+                                            className="mt-1.5"
+                                            defaultValue={
+                                                selectedPoem.createdOn
+                                                    ? new Date(selectedPoem.createdOn).toISOString().split('T')[0]
+                                                    : ''
+                                            }
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <Label htmlFor="lastUpdatedOn">Last Updated On</Label>
+                                        <Input
+                                            id="lastUpdatedOn"
+                                            name="lastUpdatedOn"
+                                            type="date"
+                                            className="mt-1.5"
+                                            defaultValue={
+                                                selectedPoem.lastUpdatedOn
+                                                    ? new Date(selectedPoem.lastUpdatedOn).toISOString().split('T')[0]
+                                                    : ''
+                                            }
+                                        />
+                                    </div>
                                 </div>
                             </div>
 
-                            <div className="flex justify-end gap-2">
+                            <div className="flex justify-end gap-3 border-t bg-muted/20 px-6 py-4">
                                 <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
                                     Cancel
                                 </Button>
