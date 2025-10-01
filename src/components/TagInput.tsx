@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,9 +8,10 @@ interface TagInputProps {
     allTags: string[];
     onTagsChange: (tags: string[]) => void;
     placeholder?: string;
+    label?: string;
 }
 
-export const TagInput = memo(function TagInput({ tags, allTags, onTagsChange, placeholder }: TagInputProps) {
+function TagInput({ tags, allTags, onTagsChange, placeholder, label }: TagInputProps) {
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Enter') {
             e.preventDefault();
@@ -28,7 +29,7 @@ export const TagInput = memo(function TagInput({ tags, allTags, onTagsChange, pl
 
     return (
         <div>
-            <Label>Tags</Label>
+            <Label>{label || 'Tags'}</Label>
             <div className="mt-1.5 mb-2 flex flex-wrap gap-1.5">
                 {tags.map((tag) => (
                     <Badge
@@ -54,4 +55,6 @@ export const TagInput = memo(function TagInput({ tags, allTags, onTagsChange, pl
             </datalist>
         </div>
     );
-});
+}
+
+export default React.memo(TagInput);

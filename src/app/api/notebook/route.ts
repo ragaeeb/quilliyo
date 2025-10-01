@@ -1,6 +1,6 @@
 import { auth } from '@clerk/nextjs/server';
 import { type NextRequest, NextResponse } from 'next/server';
-import { getNotebook, upsertNotebook } from '@/lib/models/notebook';
+import { DEFAULT_NOTEBOOK_ID, getNotebook, upsertNotebook } from '@/lib/models/notebook';
 import { decrypt, encrypt } from '@/lib/security';
 
 export async function GET(request: NextRequest) {
@@ -12,7 +12,10 @@ export async function GET(request: NextRequest) {
 
     try {
         const encryptionKey = request.headers.get('x-encryption-key');
-        const notebook = await getNotebook(userId);
+        // Support notebookId query param for future multi-notebook support
+        const notebookId = request.nextUrl.searchParams.get('notebookId') || DEFAULT_NOTEBOOK_ID;
+
+        const notebook = await getNotebook(userId, notebookId);
 
         if (!notebook) {
             // Return empty notebook if doesn't exist
@@ -51,7 +54,8 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-        const { data, encryptionKey } = await request.json();
+        const { data, encryptionKey, notebookId } = await request.json();
+        const targetNotebookId = notebookId || DEFAULT_NOTEBOOK_ID;
 
         let dataToSave: { encrypted: boolean; data?: string; poems?: Array<any> };
 
@@ -64,7 +68,7 @@ export async function POST(request: NextRequest) {
             dataToSave = { encrypted: false, poems: data.poems };
         }
 
-        await upsertNotebook(userId, dataToSave);
+        await upsertNotebook(userId, dataToSave, targetNotebookId);
 
         return NextResponse.json({ success: true, timestamp: new Date().toISOString() });
     } catch (error) {
