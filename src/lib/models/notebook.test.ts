@@ -20,8 +20,7 @@ const mockDb = { collection: mock(() => mockCollection) };
 
 const mockClient = { db: mock(() => mockDb) };
 
-// Mock clientPromise
-mock.module('@/lib/mongodb', () => ({ default: Promise.resolve(mockClient) }));
+mock.module('@/lib/mongodb', () => ({ default: () => Promise.resolve(mockClient) }));
 
 describe('notebook.ts - Database Wrapper', () => {
     beforeEach(() => {
