@@ -1,36 +1,219 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Quilliyo 📝
+
+[![wakatime](https://wakatime.com/badge/user/a0b906ce-b8e7-4463-8bce-383238df6d4b/project/8d2b207a-b1d7-4644-a927-af11fdbf25f5.svg)](https://wakatime.com/badge/user/a0b906ce-b8e7-4463-8bce-383238df6d4b/project/8d2b207a-b1d7-4644-a927-af11fdbf25f5)
+[![Vercel Deploy](https://deploy-badge.vercel.app/vercel/quilliyo)](https://quilliyo.vercel.app)
+[![codecov](https://codecov.io/gh/ragaeeb/quilliyo/graph/badge.svg?token=A2E06C7QXO)](https://codecov.io/gh/ragaeeb/quilliyo)
+[![typescript](https://badgen.net/badge/icon/typescript?icon=typescript&label&color=blue)](https://www.typescriptlang.org)
+[![Node.js CI](https://github.com/ragaeeb/quilliyo/actions/workflows/build.yml/badge.svg)](https://github.com/ragaeeb/quilliyo/actions/workflows/build.yml)
+![Bun](https://img.shields.io/badge/Bun-%23000000.svg?style=for-the-badge&logo=bun&logoColor=white)
+![GitHub License](https://img.shields.io/github/license/ragaeeb/quilliyo)
+
+A secure, modern web application for managing poetry and creative writing with built-in encryption, tagging, and annotation features.
+
+## Features
+
+### 🔐 **Security & Privacy**
+- Client-side encryption/decryption of your poetry collection
+- MongoDB backend storage with encrypted data option
+- Clerk authentication for secure user access
+
+### ✍️ **Poetry Management**
+- Create, edit, and organize poems in a digital notebook
+- Rich metadata support (tags, categories, chapters)
+- Date tracking for creation and updates
+- URL references for inspiration sources
+
+### 💭 **Thought Annotations**
+- Add contextual thoughts/notes to specific text selections within poems
+- Support for multiple thoughts on the same text
+- Visual highlighting of annotated passages
+- Edit and manage thoughts over time
+
+### 🎨 **User Experience**
+- Dark/light theme support
+- Adjustable font sizes for comfortable reading
+- Real-time search across all poems
+- Responsive design for desktop and mobile
+- Auto-save functionality
+
+## Tech Stack
+
+- **Frontend**: Next.js 15.5 with React 19
+- **Styling**: Tailwind CSS v4
+- **Authentication**: Clerk
+- **Database**: MongoDB
+- **UI Components**: Radix UI primitives with custom styling
+- **Development**: TypeScript, Biome (linting/formatting)
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
+- Node.js 18+ or Bun runtime
+- MongoDB database (local or cloud)
+- Clerk account for authentication
+
+### Installation
+
+1. Clone the repository:
+```bash
+git clone https://github.com/yourusername/quilliyo.git
+cd quilliyo
+```
+
+2. Install dependencies:
+```bash
+npm install
+# or
+bun install
+```
+
+3. Set up environment variables:
+Create a `.env.local` file in the root directory:
+```env
+# MongoDB
+MONGODB_URI=your_mongodb_connection_string
+
+# Clerk Authentication
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
+CLERK_SECRET_KEY=your_clerk_secret_key
+```
+
+4. Run the development server:
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
 # or
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) to view the application.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Project Structure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+quilliyo/
+├── app/                    # Next.js app directory
+│   ├── api/               # API routes
+│   │   └── notebook/      # Notebook CRUD operations
+│   └── page.tsx           # Main application page
+├── components/            # React components
+│   ├── ui/               # Reusable UI components
+│   ├── PoemEditModal.tsx # Poem editor with metadata
+│   ├── ContentEditor.tsx # Rich text editor with annotations
+│   └── ...
+├── hooks/                # Custom React hooks
+│   ├── useNotebook.ts   # Notebook state management
+│   ├── useSearch.ts     # Search functionality
+│   └── useMetadata.ts   # Metadata extraction
+├── lib/                  # Utility functions
+│   ├── mongodb.ts       # Database connection
+│   ├── security.ts      # Encryption utilities
+│   └── models/          # Data models
+└── types/               # TypeScript type definitions
+```
 
-## Learn More
+## Usage
 
-To learn more about Next.js, take a look at the following resources:
+### Creating a Poem
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. Click the "New Poem" button
+2. Enter title and content
+3. Add optional metadata (tags, category, chapter)
+4. Save your poem
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Adding Thoughts/Annotations
 
-## Deploy on Vercel
+1. Open a poem for editing
+2. Select the text you want to annotate
+3. Click "Add Thought"
+4. Enter your thought/note
+5. The text will be highlighted in the editor
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Encryption
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Click the encryption status button in the header
+2. Set an encryption key (keep this safe!)
+3. Your notebook will be encrypted before saving to the database
+4. You'll need the key to decrypt and view your poems
+
+### Search
+
+Use the search bar to find poems by:
+- Title
+- Content
+- Tags
+- Category
+- Chapter
+
+## Development
+
+### Scripts
+
+```bash
+# Development server with Turbopack
+npm run dev
+
+# Production build
+npm run build
+
+# Start production server
+npm run start
+
+# Code linting
+npm run lint
+
+# Format code
+npm run format
+```
+
+### Database Schema
+
+The application uses a single MongoDB collection for notebooks:
+
+```typescript
+{
+  userId: string;           // Clerk user ID
+  notebookId: string;      // Notebook identifier
+  encrypted?: boolean;     // Encryption status
+  data?: string;          // Encrypted notebook data
+  poems?: Array<{         // Unencrypted poems array
+    id: string;
+    title: string;
+    content: string;
+    tags?: string[];
+    category?: string;
+    chapter?: string;
+    createdOn?: string;
+    lastUpdatedOn?: string;
+    metadata?: {
+      urls?: string;
+      thoughts?: string;  // JSON stringified thoughts
+    };
+  }>;
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
+
+## Future Enhancements
+
+- Multiple notebook support (foundation already in place)
+- Export options (PDF, Markdown, JSON)
+- Collaborative notebooks with sharing
+- Version history for poems
+- AI-powered writing suggestions
+- Mobile app companion
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## License
+
+This project is private. All rights reserved.
+
+## Acknowledgments
+
+- Built with love for poets and creative writers
+- Inspired by the need for a secure, modern poetry management tool
+- Special thanks to all open-source contributors whose libraries made this possible

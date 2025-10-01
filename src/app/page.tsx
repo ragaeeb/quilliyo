@@ -1,103 +1,160 @@
-import Image from "next/image";
+'use client';
+
+import { format } from 'date-fns';
+import { Lock, Plus, Save, Search, Trash2, Unlock } from 'lucide-react';
+import { useCallback, useState } from 'react';
+import { EncryptionDialog } from '@/components/EncryptionDialog';
+import { PoemCard } from '@/components/PoemCard';
+import { PoemEditModal } from '@/components/PoemEditModal';
+import { ThemeToggle } from '@/components/ThemeToggle';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { useMetadata } from '@/hooks/useMetadata';
+import { useNotebook } from '@/hooks/useNotebook';
+import { useSearch } from '@/hooks/useSearch';
+import type { Poem } from '@/types/notebook';
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    const {
+        notebook,
+        encryptionKey,
+        isEncrypted,
+        showEncryptionDialog,
+        setShowEncryptionDialog,
+        lastSaved,
+        saveNotebook,
+        handleSavePoem,
+        deletePoems,
+        handleEncryptionKeySet,
+        toggleEncryption,
+    } = useNotebook();
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+    const { searchQuery, setSearchQuery, filteredPoems } = useSearch(notebook.poems);
+    const { allTags, allCategories, allChapters } = useMetadata(notebook.poems);
+
+    const [selectedPoem, setSelectedPoem] = useState<Poem | null>(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+    const createNewPoem = useCallback(() => {
+        const newPoem: Poem = {
+            id: Date.now().toString(),
+            title: 'Untitled',
+            content: '',
+            lastUpdatedOn: new Date().toISOString(),
+        };
+        setSelectedPoem(newPoem);
+        setIsModalOpen(true);
+    }, []);
+
+    const deleteSelected = useCallback(() => {
+        deletePoems(selectedIds);
+        setSelectedIds(new Set());
+    }, [selectedIds, deletePoems]);
+
+    const toggleSelect = useCallback((id: string) => {
+        setSelectedIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(id)) {
+                next.delete(id);
+            } else {
+                next.add(id);
+            }
+            return next;
+        });
+    }, []);
+
+    const handleEditPoem = useCallback((poem: Poem) => {
+        setSelectedPoem(poem);
+        setIsModalOpen(true);
+    }, []);
+
+    return (
+        <div className="container mx-auto p-8">
+            <div className="mb-6 space-y-4">
+                <div className="flex items-center justify-between">
+                    <h1 className="font-bold text-3xl">Notebook</h1>
+                    <div className="flex items-center gap-2">
+                        {lastSaved && (
+                            <span className="text-muted-foreground text-sm">
+                                Last saved: {format(new Date(lastSaved), 'HH:mm:ss')}
+                            </span>
+                        )}
+                        <ThemeToggle />
+                        <Button onClick={toggleEncryption} variant="outline" size="sm">
+                            {isEncrypted || encryptionKey ? (
+                                <>
+                                    <Lock className="mr-2 h-4 w-4" />
+                                    Encrypted
+                                </>
+                            ) : (
+                                <>
+                                    <Unlock className="mr-2 h-4 w-4" />
+                                    Unencrypted
+                                </>
+                            )}
+                        </Button>
+                        <Button onClick={saveNotebook} size="sm">
+                            <Save className="mr-2 h-4 w-4" />
+                            Save
+                        </Button>
+                    </div>
+                </div>
+
+                <div className="flex gap-2">
+                    <div className="relative flex-1">
+                        <Search className="-translate-y-1/2 absolute top-1/2 left-3 h-4 w-4 transform text-muted-foreground" />
+                        <Input
+                            placeholder="Search poems..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="pl-10"
+                        />
+                    </div>
+                    <Button onClick={createNewPoem}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        New Poem
+                    </Button>
+                    {selectedIds.size > 0 && (
+                        <Button onClick={deleteSelected} variant="destructive">
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete ({selectedIds.size})
+                        </Button>
+                    )}
+                </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {filteredPoems.map((poem) => (
+                    <PoemCard
+                        key={poem.id}
+                        poem={poem}
+                        isSelected={selectedIds.has(poem.id)}
+                        onToggleSelect={toggleSelect}
+                        onEdit={handleEditPoem}
+                    />
+                ))}
+            </div>
+
+            <PoemEditModal
+                poem={selectedPoem}
+                isOpen={isModalOpen}
+                onClose={() => {
+                    setIsModalOpen(false);
+                    setSelectedPoem(null);
+                }}
+                onSave={handleSavePoem}
+                allTags={allTags}
+                allCategories={allCategories}
+                allChapters={allChapters}
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+
+            <EncryptionDialog
+                isOpen={showEncryptionDialog}
+                onClose={() => setShowEncryptionDialog(false)}
+                onSetKey={handleEncryptionKeySet}
+                isEncrypted={isEncrypted && !encryptionKey}
+            />
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
-  );
+    );
 }
