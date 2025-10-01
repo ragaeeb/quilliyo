@@ -1,9 +1,9 @@
 import { auth } from '@clerk/nextjs/server';
 import { type NextRequest, NextResponse } from 'next/server';
-import { deleteNotebook, getNotebook, updateNotebookMetadata, upsertNotebook } from '@/lib/models/notebook';
+import { getNotebook, upsertNotebook } from '@/lib/models/notebook';
 import { decrypt, encrypt } from '@/lib/security';
 
-export async function GET(request: NextRequest, { params }: { params: { notebookId: string } }) {
+export async function GET(request: NextRequest) {
     const { userId } = await auth();
 
     if (!userId) {
@@ -12,12 +12,11 @@ export async function GET(request: NextRequest, { params }: { params: { notebook
 
     try {
         const encryptionKey = request.headers.get('x-encryption-key');
-        const notebookId = params.notebookId;
-
-        const notebook = await getNotebook(userId, notebookId);
+        const notebook = await getNotebook(userId);
 
         if (!notebook) {
-            return NextResponse.json({ error: 'Notebook not found' }, { status: 404 });
+            // Return empty notebook if doesn't exist
+            return NextResponse.json({ poems: [] });
         }
 
         // If the data is encrypted but no key provided
@@ -37,18 +36,14 @@ export async function GET(request: NextRequest, { params }: { params: { notebook
         }
 
         // Data is not encrypted
-        return NextResponse.json({
-            poems: notebook.poems || [],
-            name: notebook.name,
-            description: notebook.description,
-        });
+        return NextResponse.json({ poems: notebook.poems || [] });
     } catch (error) {
         console.error('Error fetching notebook:', error);
         return NextResponse.json({ error: 'Failed to fetch notebook' }, { status: 500 });
     }
 }
 
-export async function PUT(request: NextRequest, { params }: { params: { notebookId: string } }) {
+export async function POST(request: NextRequest) {
     const { userId } = await auth();
 
     if (!userId) {
@@ -56,7 +51,6 @@ export async function PUT(request: NextRequest, { params }: { params: { notebook
     }
 
     try {
-        const notebookId = params.notebookId;
         const { data, encryptionKey } = await request.json();
 
         let dataToSave: { encrypted: boolean; data?: string; poems?: Array<any> };
@@ -70,49 +64,11 @@ export async function PUT(request: NextRequest, { params }: { params: { notebook
             dataToSave = { encrypted: false, poems: data.poems };
         }
 
-        await upsertNotebook(userId, notebookId, dataToSave);
+        await upsertNotebook(userId, dataToSave);
 
         return NextResponse.json({ success: true, timestamp: new Date().toISOString() });
     } catch (error) {
         console.error('Error saving notebook:', error);
         return NextResponse.json({ success: false, error: String(error) }, { status: 500 });
-    }
-}
-
-export async function PATCH(request: NextRequest, { params }: { params: { notebookId: string } }) {
-    const { userId } = await auth();
-
-    if (!userId) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    try {
-        const notebookId = params.notebookId;
-        const { name, description } = await request.json();
-
-        await updateNotebookMetadata(userId, notebookId, { name, description });
-
-        return NextResponse.json({ success: true });
-    } catch (error) {
-        console.error('Error updating notebook metadata:', error);
-        return NextResponse.json({ error: 'Failed to update notebook' }, { status: 500 });
-    }
-}
-
-export async function DELETE(_request: NextRequest, { params }: { params: { notebookId: string } }) {
-    const { userId } = await auth();
-
-    if (!userId) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    try {
-        const notebookId = params.notebookId;
-        await deleteNotebook(userId, notebookId);
-
-        return NextResponse.json({ success: true });
-    } catch (error) {
-        console.error('Error deleting notebook:', error);
-        return NextResponse.json({ error: 'Failed to delete notebook' }, { status: 500 });
     }
 }

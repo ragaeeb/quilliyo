@@ -1,51 +1,33 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { Notebook, Poem } from '@/types/notebook';
 
-export function useNotebook(notebookId: string) {
+export function useNotebook() {
     const [notebook, setNotebook] = useState<Notebook>({ poems: [] });
     const [encryptionKey, setEncryptionKey] = useState<string | null>(null);
     const [isEncrypted, setIsEncrypted] = useState(false);
     const [showEncryptionDialog, setShowEncryptionDialog] = useState(false);
     const [lastSaved, setLastSaved] = useState<string | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         const loadNotebook = async () => {
-            setIsLoading(true);
-            setError(null);
-
             try {
                 const headers: HeadersInit = {};
                 if (encryptionKey) {
                     headers['x-encryption-key'] = encryptionKey;
                 }
 
-                const res = await fetch(`/api/notebooks/${notebookId}`, { headers });
-
-                if (res.status === 404) {
-                    setError('Notebook not found');
-                    setIsLoading(false);
-                    return;
-                }
-
+                const res = await fetch('/api/notebook', { headers });
                 const data = await res.json();
 
                 if (data.error) {
-                    if (data.error === 'Invalid encryption key') {
-                        alert('Invalid encryption key');
-                        setEncryptionKey(null);
-                    } else {
-                        setError(data.error);
-                    }
-                    setIsLoading(false);
+                    alert('Invalid encryption key');
+                    setEncryptionKey(null);
                     return;
                 }
 
                 if (data.encrypted) {
                     setIsEncrypted(true);
                     setShowEncryptionDialog(true);
-                    setIsLoading(false);
                     return;
                 }
 
@@ -53,19 +35,16 @@ export function useNotebook(notebookId: string) {
                 setIsEncrypted(false);
             } catch (error) {
                 console.error('Failed to load notebook:', error);
-                setError('Failed to load notebook');
-            } finally {
-                setIsLoading(false);
             }
         };
 
         loadNotebook();
-    }, [encryptionKey, notebookId]);
+    }, [encryptionKey]);
 
     const saveNotebook = useCallback(async () => {
         try {
-            const res = await fetch(`/api/notebooks/${notebookId}`, {
-                method: 'PUT',
+            const res = await fetch('/api/notebook', {
+                method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ data: notebook, encryptionKey }),
             });
@@ -76,7 +55,7 @@ export function useNotebook(notebookId: string) {
         } catch (error) {
             console.error('Failed to save:', error);
         }
-    }, [notebook, encryptionKey, notebookId]);
+    }, [notebook, encryptionKey]);
 
     const handleSavePoem = useCallback((poem: Poem) => {
         setNotebook((prev) => {
@@ -116,8 +95,6 @@ export function useNotebook(notebookId: string) {
         showEncryptionDialog,
         setShowEncryptionDialog,
         lastSaved,
-        isLoading,
-        error,
         saveNotebook,
         handleSavePoem,
         deletePoems,
