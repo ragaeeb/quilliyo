@@ -1,4 +1,4 @@
-import clientPromise from '@/lib/mongodb';
+import getClientPromise from '@/lib/mongodb';
 
 export const DEFAULT_NOTEBOOK_ID = 'default';
 
@@ -21,7 +21,7 @@ export interface NotebookDocument {
 }
 
 export async function getNotebookCollection() {
-    const client = await clientPromise;
+    const client = await getClientPromise();
     const db = client.db('quilliyo');
     return db.collection<NotebookDocument>('notebooks');
 }
