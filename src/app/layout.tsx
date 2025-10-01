@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { ClerkProvider } from '@clerk/nextjs';
+import { ThemeProvider } from '@/components/ThemeProvider';
 
 const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] });
 
@@ -11,9 +12,13 @@ export const metadata: Metadata = { title: 'Quilliyo', description: 'Poetry mana
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
     return (
-        <html lang="en">
+        <html lang="en" suppressHydrationWarning>
             <ClerkProvider>
-                <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>{children}</body>
+                <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+                    <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+                        {children}
+                    </ThemeProvider>
+                </body>
             </ClerkProvider>
         </html>
     );

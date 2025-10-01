@@ -6,6 +6,7 @@ import { useCallback, useState } from 'react';
 import { EncryptionDialog } from '@/components/EncryptionDialog';
 import { PoemCard } from '@/components/PoemCard';
 import { PoemEditModal } from '@/components/PoemEditModal';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useMetadata } from '@/hooks/useMetadata';
@@ -75,10 +76,11 @@ export default function Home() {
                     <h1 className="font-bold text-3xl">Notebook</h1>
                     <div className="flex items-center gap-2">
                         {lastSaved && (
-                            <span className="text-gray-500 text-sm">
+                            <span className="text-muted-foreground text-sm">
                                 Last saved: {format(new Date(lastSaved), 'HH:mm:ss')}
                             </span>
                         )}
+                        <ThemeToggle />
                         <Button onClick={toggleEncryption} variant="outline" size="sm">
                             {isEncrypted || encryptionKey ? (
                                 <>
@@ -101,7 +103,7 @@ export default function Home() {
 
                 <div className="flex gap-2">
                     <div className="relative flex-1">
-                        <Search className="-translate-y-1/2 absolute top-1/2 left-3 h-4 w-4 transform text-gray-400" />
+                        <Search className="-translate-y-1/2 absolute top-1/2 left-3 h-4 w-4 transform text-muted-foreground" />
                         <Input
                             placeholder="Search poems..."
                             value={searchQuery}

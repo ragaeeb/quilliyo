@@ -1,24 +1,7 @@
-import fs from 'node:fs/promises';
-import path from 'node:path';
 import { auth } from '@clerk/nextjs/server';
 import { type NextRequest, NextResponse } from 'next/server';
+import { getNotebook, upsertNotebook } from '@/lib/models/notebook';
 import { decrypt, encrypt } from '@/lib/security';
-
-const NOTEBOOK_DIR = path.join(process.cwd(), 'public', 'notebooks');
-
-// Ensure notebooks directory exists
-async function ensureNotebooksDir() {
-    try {
-        await fs.mkdir(NOTEBOOK_DIR, { recursive: true });
-    } catch (error) {
-        console.error('Error creating notebooks directory:', error);
-    }
-}
-
-// Get user-specific notebook path
-function getUserNotebookPath(userId: string): string {
-    return path.join(NOTEBOOK_DIR, `${userId}.json`);
-}
 
 export async function GET(request: NextRequest) {
     const { userId } = await auth();
@@ -28,34 +11,35 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-        await ensureNotebooksDir();
-        const notebookPath = getUserNotebookPath(userId);
         const encryptionKey = request.headers.get('x-encryption-key');
+        const notebook = await getNotebook(userId);
 
-        const data = await fs.readFile(notebookPath, 'utf-8');
-        const parsed = JSON.parse(data);
+        if (!notebook) {
+            // Return empty notebook if doesn't exist
+            return NextResponse.json({ poems: [] });
+        }
 
         // If the data is encrypted but no key provided
-        if (parsed.encrypted && !encryptionKey) {
+        if (notebook.encrypted && !encryptionKey) {
             return NextResponse.json({ encrypted: true, poems: [] });
         }
 
         // If the data is encrypted and key is provided, decrypt it
-        if (parsed.encrypted && encryptionKey) {
+        if (notebook.encrypted && encryptionKey && notebook.data) {
             try {
-                const decryptedData = decrypt(parsed.data, encryptionKey);
-                const notebook = JSON.parse(decryptedData);
-                return NextResponse.json({ ...notebook, encrypted: false });
+                const decryptedData = decrypt(notebook.data, encryptionKey);
+                const notebookData = JSON.parse(decryptedData);
+                return NextResponse.json({ ...notebookData, encrypted: false });
             } catch {
                 return NextResponse.json({ error: 'Invalid encryption key' }, { status: 401 });
             }
         }
 
         // Data is not encrypted
-        return NextResponse.json(parsed);
-    } catch {
-        // Return empty notebook if file doesn't exist
-        return NextResponse.json({ poems: [] });
+        return NextResponse.json({ poems: notebook.poems || [] });
+    } catch (error) {
+        console.error('Error fetching notebook:', error);
+        return NextResponse.json({ error: 'Failed to fetch notebook' }, { status: 500 });
     }
 }
 
@@ -67,11 +51,9 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-        await ensureNotebooksDir();
-        const notebookPath = getUserNotebookPath(userId);
         const { data, encryptionKey } = await request.json();
 
-        let dataToSave;
+        let dataToSave: { encrypted: boolean; data?: string; poems?: Array<any> };
 
         if (encryptionKey) {
             // Encrypt the data
@@ -79,13 +61,14 @@ export async function POST(request: NextRequest) {
             const encryptedData = encrypt(jsonData, encryptionKey);
             dataToSave = { encrypted: true, data: encryptedData };
         } else {
-            dataToSave = data;
+            dataToSave = { encrypted: false, poems: data.poems };
         }
 
-        await fs.writeFile(notebookPath, JSON.stringify(dataToSave, null, 2));
+        await upsertNotebook(userId, dataToSave);
 
         return NextResponse.json({ success: true, timestamp: new Date().toISOString() });
     } catch (error) {
+        console.error('Error saving notebook:', error);
         return NextResponse.json({ success: false, error: String(error) }, { status: 500 });
     }
 }
