@@ -26,13 +26,19 @@ export function useNotebook() {
                 }
 
                 if (data.encrypted) {
+                    // Notebook is encrypted in DB but we don't have key yet
                     setIsEncrypted(true);
                     setShowEncryptionDialog(true);
                     return;
                 }
 
+                // Successfully loaded (either unencrypted, or decrypted with key)
                 setNotebook(data);
-                setIsEncrypted(false);
+                // Keep isEncrypted true if we used a key to decrypt (means it's still encrypted in DB)
+                // Only set to false if we truly loaded unencrypted data
+                if (!encryptionKey) {
+                    setIsEncrypted(false);
+                }
             } catch (error) {
                 console.error('Failed to load notebook:', error);
             }
@@ -51,6 +57,8 @@ export function useNotebook() {
             const result = await res.json();
             if (result.success) {
                 setLastSaved(result.timestamp);
+                // After saving, update isEncrypted based on whether we saved with a key
+                setIsEncrypted(!!encryptionKey);
             }
         } catch (error) {
             console.error('Failed to save:', error);
@@ -76,21 +84,32 @@ export function useNotebook() {
 
     const handleEncryptionKeySet = useCallback((key: string) => {
         setEncryptionKey(key);
-        setIsEncrypted(!!key);
+        setIsEncrypted(true);
     }, []);
 
-    const toggleEncryption = useCallback(() => {
+    const toggleEncryption = useCallback(async () => {
         if (encryptionKey) {
-            // Decrypt: remove the encryption key
-            // Important: we need to save immediately to persist the decrypted state
-            setEncryptionKey(null);
-            setIsEncrypted(false);
-            // The next save will store the notebook unencrypted
+            // Remove encryption: save as unencrypted immediately
+            try {
+                const res = await fetch('/api/notebook', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ data: notebook, encryptionKey: null }),
+                });
+                const result = await res.json();
+                if (result.success) {
+                    setEncryptionKey(null);
+                    setIsEncrypted(false);
+                    setLastSaved(result.timestamp);
+                }
+            } catch (error) {
+                console.error('Failed to remove encryption:', error);
+            }
         } else {
-            // Encrypt: prompt for key
+            // Add encryption: prompt for key
             setShowEncryptionDialog(true);
         }
-    }, [encryptionKey]);
+    }, [encryptionKey, notebook]);
 
     return {
         notebook,

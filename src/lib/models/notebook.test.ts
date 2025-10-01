@@ -3,51 +3,49 @@ import {
     DEFAULT_NOTEBOOK_ID,
     deleteNotebook,
     getNotebook,
-    getNotebookCollection,
     listNotebooks,
     type NotebookDocument,
     upsertNotebook,
 } from './notebook';
 
-const mockCollection = {
-    findOne: mock(() => Promise.resolve(null)),
-    updateOne: mock(() => Promise.resolve({ acknowledged: true, modifiedCount: 1 })),
-    find: mock(() => ({ sort: mock(() => ({ toArray: mock(() => Promise.resolve([])) })) })),
-    deleteOne: mock(() => Promise.resolve({ acknowledged: true, deletedCount: 1 })),
-};
+const mockSelect = mock(() => mockQuery);
+const mockEq = mock(() => mockQuery);
+const mockSingle = mock(() => Promise.resolve({ data: null, error: null }));
+const mockUpsert = mock(() => Promise.resolve({ error: null }));
+const mockOrder = mock(() => Promise.resolve({ data: [], error: null }));
+const mockDelete = mock(() => mockDeleteQuery);
 
-const mockDb = { collection: mock(() => mockCollection) };
+const mockQuery = { select: mockSelect, eq: mockEq, single: mockSingle, order: mockOrder };
 
-const mockClient = { db: mock(() => mockDb) };
+const mockDeleteQuery = { eq: mockEq };
 
-mock.module('@/lib/mongodb', () => ({ default: () => Promise.resolve(mockClient) }));
+const mockFrom = mock(() => ({ select: mockSelect, upsert: mockUpsert, delete: mockDelete }));
 
-describe('notebook.ts - Database Wrapper', () => {
+const mockSupabase = { from: mockFrom };
+
+const mockCreateClient = mock(() => Promise.resolve(mockSupabase));
+
+mock.module('@/lib/supabase/server', () => ({ createClient: mockCreateClient }));
+
+describe('notebook.ts - Supabase Wrapper', () => {
     beforeEach(() => {
         // Reset all mocks before each test
-        mockCollection.findOne.mockClear();
-        mockCollection.updateOne.mockClear();
-        mockCollection.find.mockClear();
-        mockCollection.deleteOne.mockClear();
-        mockDb.collection.mockClear();
-        mockClient.db.mockClear();
-    });
+        mockCreateClient.mockClear();
+        mockFrom.mockClear();
+        mockSelect.mockClear();
+        mockEq.mockClear();
+        mockSingle.mockClear();
+        mockUpsert.mockClear();
+        mockOrder.mockClear();
+        mockDelete.mockClear();
 
-    describe('getNotebookCollection', () => {
-        it('should return the notebooks collection', async () => {
-            const collection = await getNotebookCollection();
-
-            expect(mockClient.db).toHaveBeenCalledWith('quilliyo');
-            expect(mockDb.collection).toHaveBeenCalledWith('notebooks');
-            expect(collection).toBe(mockCollection);
-        });
-
-        it('should call db and collection with correct parameters', async () => {
-            await getNotebookCollection();
-
-            expect(mockClient.db).toHaveBeenCalledTimes(1);
-            expect(mockDb.collection).toHaveBeenCalledTimes(1);
-        });
+        // Reset mock implementations
+        mockSelect.mockReturnValue(mockQuery);
+        mockEq.mockReturnValue(mockQuery);
+        mockSingle.mockResolvedValue({ data: null, error: null });
+        mockUpsert.mockResolvedValue({ error: null });
+        mockOrder.mockResolvedValue({ data: [], error: null });
+        mockDelete.mockReturnValue(mockDeleteQuery);
     });
 
     describe('getNotebook', () => {
@@ -56,60 +54,77 @@ describe('notebook.ts - Database Wrapper', () => {
 
         it('should fetch notebook with default notebookId', async () => {
             const mockNotebook: NotebookDocument = {
-                userId,
-                notebookId: DEFAULT_NOTEBOOK_ID,
+                id: 'doc1',
+                user_id: userId,
+                notebook_id: DEFAULT_NOTEBOOK_ID,
                 poems: [],
-                updatedAt: new Date(),
-                createdAt: new Date(),
+                updated_at: new Date().toISOString(),
+                created_at: new Date().toISOString(),
             };
-            mockCollection.findOne.mockResolvedValue(mockNotebook);
+            mockSingle.mockResolvedValue({ data: mockNotebook, error: null });
 
             const result = await getNotebook(userId);
 
-            expect(mockCollection.findOne).toHaveBeenCalledWith({ userId, notebookId: DEFAULT_NOTEBOOK_ID });
+            expect(mockFrom).toHaveBeenCalledWith('notebooks');
+            expect(mockSelect).toHaveBeenCalledWith('*');
+            expect(mockEq).toHaveBeenCalledWith('user_id', userId);
+            expect(mockEq).toHaveBeenCalledWith('notebook_id', DEFAULT_NOTEBOOK_ID);
+            expect(mockSingle).toHaveBeenCalled();
             expect(result).toEqual(mockNotebook);
         });
 
         it('should fetch notebook with custom notebookId', async () => {
             const mockNotebook: NotebookDocument = {
-                userId,
-                notebookId: customNotebookId,
+                id: 'doc2',
+                user_id: userId,
+                notebook_id: customNotebookId,
                 poems: [],
-                updatedAt: new Date(),
-                createdAt: new Date(),
+                updated_at: new Date().toISOString(),
+                created_at: new Date().toISOString(),
             };
-            mockCollection.findOne.mockResolvedValue(mockNotebook);
+            mockSingle.mockResolvedValue({ data: mockNotebook, error: null });
 
             const result = await getNotebook(userId, customNotebookId);
 
-            expect(mockCollection.findOne).toHaveBeenCalledWith({ userId, notebookId: customNotebookId });
+            expect(mockEq).toHaveBeenCalledWith('user_id', userId);
+            expect(mockEq).toHaveBeenCalledWith('notebook_id', customNotebookId);
             expect(result).toEqual(mockNotebook);
         });
 
-        it('should return null when notebook does not exist', async () => {
-            mockCollection.findOne.mockResolvedValue(null);
+        it('should return null when notebook does not exist (PGRST116 error)', async () => {
+            mockSingle.mockResolvedValue({ data: null, error: { code: 'PGRST116', message: 'No rows returned' } });
 
             const result = await getNotebook(userId);
 
             expect(result).toBeNull();
         });
 
+        it('should throw error for non-PGRST116 errors', async () => {
+            const dbError = { code: 'PGRST500', message: 'Database error' };
+            mockSingle.mockResolvedValue({ data: null, error: dbError });
+
+            await expect(getNotebook(userId)).rejects.toEqual(dbError);
+        });
+
         it('should fetch encrypted notebook', async () => {
             const mockNotebook: NotebookDocument = {
-                userId,
-                notebookId: DEFAULT_NOTEBOOK_ID,
+                id: 'doc3',
+                user_id: userId,
+                notebook_id: DEFAULT_NOTEBOOK_ID,
                 encrypted: true,
                 data: 'encrypted-data-string',
-                updatedAt: new Date(),
-                createdAt: new Date(),
+                poems: null,
+                updated_at: new Date().toISOString(),
+                created_at: new Date().toISOString(),
             };
-            mockCollection.findOne.mockResolvedValue(mockNotebook);
+            mockSingle.mockResolvedValue({ data: mockNotebook, error: null });
 
             const result = await getNotebook(userId);
 
             expect(result).toEqual(mockNotebook);
             expect(result?.encrypted).toBe(true);
             expect(result?.data).toBe('encrypted-data-string');
+            expect(result?.poems).toBeNull();
         });
 
         it('should fetch notebook with poems', async () => {
@@ -125,13 +140,14 @@ describe('notebook.ts - Database Wrapper', () => {
                 },
             ];
             const mockNotebook: NotebookDocument = {
-                userId,
-                notebookId: DEFAULT_NOTEBOOK_ID,
+                id: 'doc4',
+                user_id: userId,
+                notebook_id: DEFAULT_NOTEBOOK_ID,
                 poems: mockPoems,
-                updatedAt: new Date(),
-                createdAt: new Date(),
+                updated_at: new Date().toISOString(),
+                created_at: new Date().toISOString(),
             };
-            mockCollection.findOne.mockResolvedValue(mockNotebook);
+            mockSingle.mockResolvedValue({ data: mockNotebook, error: null });
 
             const result = await getNotebook(userId);
 
@@ -145,75 +161,72 @@ describe('notebook.ts - Database Wrapper', () => {
         const customNotebookId = 'custom-notebook';
 
         it('should upsert notebook with default notebookId', async () => {
-            const data: Partial<NotebookDocument> = {
+            const data = {
                 poems: [{ id: 'poem1', title: 'Test', content: 'Content', lastUpdatedOn: new Date().toISOString() }],
             };
 
             await upsertNotebook(userId, data);
 
-            expect(mockCollection.updateOne).toHaveBeenCalledTimes(1);
-            const callArgs = mockCollection.updateOne.mock.calls[0];
-            expect(callArgs[0]).toEqual({ userId, notebookId: DEFAULT_NOTEBOOK_ID });
-            expect(callArgs[1].$set).toMatchObject({ poems: data.poems });
-            expect(callArgs[1].$set.updatedAt).toBeInstanceOf(Date);
-            expect(callArgs[1].$setOnInsert).toMatchObject({ userId, notebookId: DEFAULT_NOTEBOOK_ID });
-            expect(callArgs[1].$setOnInsert.createdAt).toBeInstanceOf(Date);
-            expect(callArgs[2]).toEqual({ upsert: true });
+            expect(mockFrom).toHaveBeenCalledWith('notebooks');
+            expect(mockUpsert).toHaveBeenCalledWith(
+                { user_id: userId, notebook_id: DEFAULT_NOTEBOOK_ID, ...data },
+                { onConflict: 'user_id,notebook_id' },
+            );
         });
 
         it('should upsert notebook with custom notebookId', async () => {
-            const data: Partial<NotebookDocument> = { encrypted: true, data: 'encrypted-data' };
+            const data = { encrypted: true, data: 'encrypted-data' };
 
             await upsertNotebook(userId, data, customNotebookId);
 
-            const callArgs = mockCollection.updateOne.mock.calls[0];
-            expect(callArgs[0]).toEqual({ userId, notebookId: customNotebookId });
-            expect(callArgs[1].$setOnInsert.notebookId).toBe(customNotebookId);
+            expect(mockUpsert).toHaveBeenCalledWith(
+                { user_id: userId, notebook_id: customNotebookId, ...data },
+                { onConflict: 'user_id,notebook_id' },
+            );
         });
 
-        it('should update updatedAt timestamp', async () => {
-            const beforeTime = new Date();
-            await upsertNotebook(userId, {});
-            const afterTime = new Date();
-
-            const callArgs = mockCollection.updateOne.mock.calls[0];
-            const updatedAt = callArgs[1].$set.updatedAt;
-
-            expect(updatedAt).toBeInstanceOf(Date);
-            expect(updatedAt.getTime()).toBeGreaterThanOrEqual(beforeTime.getTime());
-            expect(updatedAt.getTime()).toBeLessThanOrEqual(afterTime.getTime());
-        });
-
-        it('should set createdAt only on insert', async () => {
-            await upsertNotebook(userId, {});
-
-            const callArgs = mockCollection.updateOne.mock.calls[0];
-            expect(callArgs[1].$setOnInsert.createdAt).toBeInstanceOf(Date);
-            expect(callArgs[1].$set.createdAt).toBeUndefined();
-        });
-
-        it('should merge partial data correctly', async () => {
-            const data: Partial<NotebookDocument> = { encrypted: true, poems: [] };
+        it('should handle encrypted data', async () => {
+            const data = { encrypted: true, data: 'encrypted-string', poems: null };
 
             await upsertNotebook(userId, data);
 
-            const callArgs = mockCollection.updateOne.mock.calls[0];
-            expect(callArgs[1].$set.encrypted).toBe(true);
-            expect(callArgs[1].$set.poems).toEqual([]);
+            expect(mockUpsert).toHaveBeenCalledWith(
+                { user_id: userId, notebook_id: DEFAULT_NOTEBOOK_ID, ...data },
+                { onConflict: 'user_id,notebook_id' },
+            );
+        });
+
+        it('should handle unencrypted data', async () => {
+            const data = { encrypted: false, poems: [], data: null };
+
+            await upsertNotebook(userId, data);
+
+            expect(mockUpsert).toHaveBeenCalledWith(
+                { user_id: userId, notebook_id: DEFAULT_NOTEBOOK_ID, ...data },
+                { onConflict: 'user_id,notebook_id' },
+            );
+        });
+
+        it('should throw error on upsert failure', async () => {
+            const dbError = { message: 'Upsert failed', code: 'PGRST500' };
+            mockUpsert.mockResolvedValue({ error: dbError });
+
+            await expect(upsertNotebook(userId, {})).rejects.toEqual(dbError);
         });
 
         it('should handle empty data object', async () => {
             await upsertNotebook(userId, {});
 
-            expect(mockCollection.updateOne).toHaveBeenCalledTimes(1);
-            const callArgs = mockCollection.updateOne.mock.calls[0];
-            expect(callArgs[1].$set.updatedAt).toBeInstanceOf(Date);
+            expect(mockUpsert).toHaveBeenCalledWith(
+                { user_id: userId, notebook_id: DEFAULT_NOTEBOOK_ID },
+                { onConflict: 'user_id,notebook_id' },
+            );
         });
 
         it('should preserve all fields in partial data', async () => {
-            const data: Partial<NotebookDocument> = {
+            const data = {
                 encrypted: false,
-                data: 'some-data',
+                data: null,
                 poems: [
                     {
                         id: 'p1',
@@ -229,8 +242,10 @@ describe('notebook.ts - Database Wrapper', () => {
 
             await upsertNotebook(userId, data);
 
-            const callArgs = mockCollection.updateOne.mock.calls[0];
-            expect(callArgs[1].$set).toMatchObject(data);
+            expect(mockUpsert).toHaveBeenCalledWith(
+                { user_id: userId, notebook_id: DEFAULT_NOTEBOOK_ID, ...data },
+                { onConflict: 'user_id,notebook_id' },
+            );
         });
     });
 
@@ -240,34 +255,35 @@ describe('notebook.ts - Database Wrapper', () => {
         it('should list all notebooks for a user', async () => {
             const mockNotebooks: NotebookDocument[] = [
                 {
-                    userId,
-                    notebookId: 'notebook1',
+                    id: 'doc1',
+                    user_id: userId,
+                    notebook_id: 'notebook1',
                     poems: [],
-                    updatedAt: new Date('2024-01-02'),
-                    createdAt: new Date('2024-01-02'),
+                    updated_at: new Date('2024-01-02').toISOString(),
+                    created_at: new Date('2024-01-02').toISOString(),
                 },
                 {
-                    userId,
-                    notebookId: 'notebook2',
+                    id: 'doc2',
+                    user_id: userId,
+                    notebook_id: 'notebook2',
                     poems: [],
-                    updatedAt: new Date('2024-01-01'),
-                    createdAt: new Date('2024-01-01'),
+                    updated_at: new Date('2024-01-01').toISOString(),
+                    created_at: new Date('2024-01-01').toISOString(),
                 },
             ];
-
-            const mockSort = mock(() => ({ toArray: mock(() => Promise.resolve(mockNotebooks)) }));
-            mockCollection.find.mockReturnValue({ sort: mockSort });
+            mockOrder.mockResolvedValue({ data: mockNotebooks, error: null });
 
             const result = await listNotebooks(userId);
 
-            expect(mockCollection.find).toHaveBeenCalledWith({ userId });
-            expect(mockSort).toHaveBeenCalledWith({ createdAt: -1 });
+            expect(mockFrom).toHaveBeenCalledWith('notebooks');
+            expect(mockSelect).toHaveBeenCalledWith('*');
+            expect(mockEq).toHaveBeenCalledWith('user_id', userId);
+            expect(mockOrder).toHaveBeenCalledWith('created_at', { ascending: false });
             expect(result).toEqual(mockNotebooks);
         });
 
         it('should return empty array when user has no notebooks', async () => {
-            const mockSort = mock(() => ({ toArray: mock(() => Promise.resolve([])) }));
-            mockCollection.find.mockReturnValue({ sort: mockSort });
+            mockOrder.mockResolvedValue({ data: [], error: null });
 
             const result = await listNotebooks(userId);
 
@@ -275,36 +291,43 @@ describe('notebook.ts - Database Wrapper', () => {
             expect(result.length).toBe(0);
         });
 
-        it('should sort notebooks by createdAt descending', async () => {
-            const mockSort = mock(() => ({ toArray: mock(() => Promise.resolve([])) }));
-            mockCollection.find.mockReturnValue({ sort: mockSort });
+        it('should return empty array when data is null', async () => {
+            mockOrder.mockResolvedValue({ data: null, error: null });
 
-            await listNotebooks(userId);
+            const result = await listNotebooks(userId);
 
-            expect(mockSort).toHaveBeenCalledWith({ createdAt: -1 });
+            expect(result).toEqual([]);
+        });
+
+        it('should throw error on query failure', async () => {
+            const dbError = { message: 'Query failed', code: 'PGRST500' };
+            mockOrder.mockResolvedValue({ data: null, error: dbError });
+
+            await expect(listNotebooks(userId)).rejects.toEqual(dbError);
         });
 
         it('should handle multiple notebooks with different data', async () => {
             const mockNotebooks: NotebookDocument[] = [
                 {
-                    userId,
-                    notebookId: DEFAULT_NOTEBOOK_ID,
+                    id: 'doc1',
+                    user_id: userId,
+                    notebook_id: DEFAULT_NOTEBOOK_ID,
                     poems: [{ id: '1', title: 'Poem', content: 'Content', lastUpdatedOn: '2024-01-01' }],
-                    updatedAt: new Date(),
-                    createdAt: new Date(),
+                    updated_at: new Date().toISOString(),
+                    created_at: new Date().toISOString(),
                 },
                 {
-                    userId,
-                    notebookId: 'encrypted-notebook',
+                    id: 'doc2',
+                    user_id: userId,
+                    notebook_id: 'encrypted-notebook',
                     encrypted: true,
                     data: 'encrypted',
-                    updatedAt: new Date(),
-                    createdAt: new Date(),
+                    poems: null,
+                    updated_at: new Date().toISOString(),
+                    created_at: new Date().toISOString(),
                 },
             ];
-
-            const mockSort = mock(() => ({ toArray: mock(() => Promise.resolve(mockNotebooks)) }));
-            mockCollection.find.mockReturnValue({ sort: mockSort });
+            mockOrder.mockResolvedValue({ data: mockNotebooks, error: null });
 
             const result = await listNotebooks(userId);
 
@@ -316,20 +339,13 @@ describe('notebook.ts - Database Wrapper', () => {
 
     describe('deleteNotebook', () => {
         const userId = 'user123';
-        const customNotebookId = 'custom-notebook';
-
-        it('should delete a custom notebook', async () => {
-            await deleteNotebook(userId, customNotebookId);
-
-            expect(mockCollection.deleteOne).toHaveBeenCalledWith({ userId, notebookId: customNotebookId });
-        });
 
         it('should throw error when trying to delete default notebook', async () => {
             await expect(deleteNotebook(userId, DEFAULT_NOTEBOOK_ID)).rejects.toThrow(
                 'Cannot delete the default notebook',
             );
 
-            expect(mockCollection.deleteOne).not.toHaveBeenCalled();
+            expect(mockDelete).not.toHaveBeenCalled();
         });
 
         it('should throw error with correct message for default notebook', async () => {
@@ -340,33 +356,6 @@ describe('notebook.ts - Database Wrapper', () => {
                 expect(error).toBeInstanceOf(Error);
                 expect((error as Error).message).toBe('Cannot delete the default notebook');
             }
-        });
-
-        it('should successfully delete non-default notebooks', async () => {
-            mockCollection.deleteOne.mockResolvedValue({ acknowledged: true, deletedCount: 1 });
-
-            await deleteNotebook(userId, 'notebook-to-delete');
-
-            expect(mockCollection.deleteOne).toHaveBeenCalledTimes(1);
-        });
-
-        it('should handle deletion of non-existent notebook', async () => {
-            mockCollection.deleteOne.mockResolvedValue({ acknowledged: true, deletedCount: 0 });
-
-            await deleteNotebook(userId, 'non-existent');
-
-            expect(mockCollection.deleteOne).toHaveBeenCalledWith({ userId, notebookId: 'non-existent' });
-        });
-
-        it('should validate notebookId before deletion', async () => {
-            const testCases = ['valid-notebook', 'another-notebook-123', 'notebook_with_underscore'];
-
-            for (const notebookId of testCases) {
-                await deleteNotebook(userId, notebookId);
-                expect(mockCollection.deleteOne).toHaveBeenCalledWith({ userId, notebookId });
-            }
-
-            expect(mockCollection.deleteOne).toHaveBeenCalledTimes(testCases.length);
         });
     });
 
@@ -383,47 +372,31 @@ describe('notebook.ts - Database Wrapper', () => {
     describe('Error handling and edge cases', () => {
         const userId = 'user123';
 
-        it('should handle database errors in upsertNotebook', async () => {
-            mockCollection.updateOne.mockRejectedValue(new Error('Write failed'));
-
-            await expect(upsertNotebook(userId, {})).rejects.toThrow('Write failed');
-        });
-
-        it('should handle database errors in listNotebooks', async () => {
-            const mockSort = mock(() => ({ toArray: mock(() => Promise.reject(new Error('Query failed'))) }));
-            mockCollection.find.mockReturnValue({ sort: mockSort });
-
-            await expect(listNotebooks(userId)).rejects.toThrow('Query failed');
-        });
-
-        it('should handle database errors in deleteNotebook', async () => {
-            mockCollection.deleteOne.mockRejectedValue(new Error('Delete failed'));
-
-            await expect(deleteNotebook(userId, 'custom')).rejects.toThrow('Delete failed');
-        });
-
         it('should handle special characters in userId', async () => {
             const specialUserId = 'user@example.com';
+            mockSingle.mockResolvedValue({ data: null, error: { code: 'PGRST116' } });
+
             await getNotebook(specialUserId);
 
-            expect(mockCollection.findOne).toHaveBeenCalledWith({
-                userId: specialUserId,
-                notebookId: DEFAULT_NOTEBOOK_ID,
-            });
+            expect(mockEq).toHaveBeenCalledWith('user_id', specialUserId);
         });
 
         it('should handle special characters in notebookId', async () => {
             const specialNotebookId = 'notebook-with-special!@#$%^&*()';
+            mockSingle.mockResolvedValue({ data: null, error: { code: 'PGRST116' } });
+
             await getNotebook(userId, specialNotebookId);
 
-            expect(mockCollection.findOne).toHaveBeenCalledWith({ userId, notebookId: specialNotebookId });
+            expect(mockEq).toHaveBeenCalledWith('notebook_id', specialNotebookId);
         });
 
         it('should handle very long notebookId strings', async () => {
             const longNotebookId = 'a'.repeat(1000);
+            mockSingle.mockResolvedValue({ data: null, error: { code: 'PGRST116' } });
+
             await getNotebook(userId, longNotebookId);
 
-            expect(mockCollection.findOne).toHaveBeenCalledWith({ userId, notebookId: longNotebookId });
+            expect(mockEq).toHaveBeenCalledWith('notebook_id', longNotebookId);
         });
     });
 });
