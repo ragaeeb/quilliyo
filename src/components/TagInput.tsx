@@ -7,9 +7,10 @@ interface TagInputProps {
     tags: string[];
     allTags: string[];
     onTagsChange: (tags: string[]) => void;
+    placeholder?: string;
 }
 
-export const TagInput = memo(function TagInput({ tags, allTags, onTagsChange }: TagInputProps) {
+export const TagInput = memo(function TagInput({ tags, allTags, onTagsChange, placeholder }: TagInputProps) {
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Enter') {
             e.preventDefault();
@@ -40,7 +41,12 @@ export const TagInput = memo(function TagInput({ tags, allTags, onTagsChange }: 
                     </Badge>
                 ))}
             </div>
-            <Input id="tagInput" list="tags" placeholder="Add tag (press Enter)" onKeyDown={handleKeyDown} />
+            <Input
+                id="tagInput"
+                list="tags"
+                placeholder={placeholder || 'Add tag (press Enter)'}
+                onKeyDown={handleKeyDown}
+            />
             <datalist id="tags">
                 {allTags.map((tag) => (
                     <option key={tag} value={tag} />

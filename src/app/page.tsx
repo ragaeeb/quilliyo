@@ -1,128 +1,39 @@
 'use client';
 
 import { format } from 'date-fns';
-import Fuse from 'fuse.js';
 import { Lock, Plus, Save, Search, Trash2, Unlock } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { EncryptionDialog } from '@/components/EncryptionDialog';
 import { PoemCard } from '@/components/PoemCard';
 import { PoemEditModal } from '@/components/PoemEditModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import type { Notebook, Poem } from '@/types/notebook';
+import { useMetadata } from '@/hooks/useMetadata';
+import { useNotebook } from '@/hooks/useNotebook';
+import { useSearch } from '@/hooks/useSearch';
+import type { Poem } from '@/types/notebook';
 
 export default function Home() {
-    const [notebook, setNotebook] = useState<Notebook>({ poems: [] });
+    const {
+        notebook,
+        encryptionKey,
+        isEncrypted,
+        showEncryptionDialog,
+        setShowEncryptionDialog,
+        lastSaved,
+        saveNotebook,
+        handleSavePoem,
+        deletePoems,
+        handleEncryptionKeySet,
+        toggleEncryption,
+    } = useNotebook();
+
+    const { searchQuery, setSearchQuery, filteredPoems } = useSearch(notebook.poems);
+    const { allTags, allCategories, allChapters } = useMetadata(notebook.poems);
+
     const [selectedPoem, setSelectedPoem] = useState<Poem | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-    const [searchQuery, setSearchQuery] = useState('');
-    const [debouncedSearch, setDebouncedSearch] = useState('');
-    const [lastSaved, setLastSaved] = useState<string | null>(null);
-    const [encryptionKey, setEncryptionKey] = useState<string | null>(null);
-    const [isEncrypted, setIsEncrypted] = useState(false);
-    const [showEncryptionDialog, setShowEncryptionDialog] = useState(false);
-    const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-    // Memoized values for optimization
-    const allTags = useMemo(() => {
-        const tags = new Set<string>();
-        notebook.poems.forEach((p) => {
-            p.tags?.forEach((t) => tags.add(t.toLowerCase()));
-        });
-        return Array.from(tags).sort();
-    }, [notebook.poems]);
-
-    const allCategories = useMemo(() => {
-        const cats = new Set<string>();
-        notebook.poems.forEach((p) => p.category && cats.add(p.category));
-        return Array.from(cats).sort();
-    }, [notebook.poems]);
-
-    const allChapters = useMemo(() => {
-        const chaps = new Set<string>();
-        notebook.poems.forEach((p) => p.chapter && chaps.add(p.chapter));
-        return Array.from(chaps).sort();
-    }, [notebook.poems]);
-
-    // Load notebook
-    useEffect(() => {
-        const loadNotebook = async () => {
-            try {
-                const headers: HeadersInit = {};
-                if (encryptionKey) {
-                    headers['x-encryption-key'] = encryptionKey;
-                }
-
-                const res = await fetch('/api/notebook', { headers });
-                const data = await res.json();
-
-                if (data.error) {
-                    alert('Invalid encryption key');
-                    setEncryptionKey(null);
-                    return;
-                }
-
-                if (data.encrypted) {
-                    setIsEncrypted(true);
-                    setShowEncryptionDialog(true);
-                    return;
-                }
-
-                setNotebook(data);
-                setIsEncrypted(false);
-            } catch (error) {
-                console.error('Failed to load notebook:', error);
-            }
-        };
-
-        loadNotebook();
-    }, [encryptionKey]);
-
-    // Search with debouncing
-    useEffect(() => {
-        if (searchTimeoutRef.current) {
-            clearTimeout(searchTimeoutRef.current);
-        }
-        searchTimeoutRef.current = setTimeout(() => {
-            setDebouncedSearch(searchQuery);
-        }, 300);
-
-        return () => {
-            if (searchTimeoutRef.current) {
-                clearTimeout(searchTimeoutRef.current);
-            }
-        };
-    }, [searchQuery]);
-
-    // Fuzzy search
-    const filteredPoems = useMemo(() => {
-        if (!debouncedSearch) return notebook.poems;
-
-        const fuse = new Fuse(notebook.poems, {
-            keys: ['title', 'content', 'tags', 'category', 'chapter'],
-            threshold: 0.3,
-            includeScore: true,
-        });
-
-        return fuse.search(debouncedSearch).map((result) => result.item);
-    }, [notebook.poems, debouncedSearch]);
-
-    const saveNotebook = useCallback(async () => {
-        try {
-            const res = await fetch('/api/notebook', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ data: notebook, encryptionKey }),
-            });
-            const result = await res.json();
-            if (result.success) {
-                setLastSaved(result.timestamp);
-            }
-        } catch (error) {
-            console.error('Failed to save:', error);
-        }
-    }, [notebook, encryptionKey]);
 
     const createNewPoem = useCallback(() => {
         const newPoem: Poem = {
@@ -135,23 +46,10 @@ export default function Home() {
         setIsModalOpen(true);
     }, []);
 
-    const handleSavePoem = useCallback((poem: Poem) => {
-        setNotebook((prev) => {
-            const index = prev.poems.findIndex((p) => p.id === poem.id);
-            const newPoems = [...prev.poems];
-            if (index >= 0) {
-                newPoems[index] = poem;
-            } else {
-                newPoems.push(poem);
-            }
-            return { ...prev, poems: newPoems };
-        });
-    }, []);
-
     const deleteSelected = useCallback(() => {
-        setNotebook((prev) => ({ ...prev, poems: prev.poems.filter((p) => !selectedIds.has(p.id)) }));
+        deletePoems(selectedIds);
         setSelectedIds(new Set());
-    }, [selectedIds]);
+    }, [selectedIds, deletePoems]);
 
     const toggleSelect = useCallback((id: string) => {
         setSelectedIds((prev) => {
@@ -169,22 +67,6 @@ export default function Home() {
         setSelectedPoem(poem);
         setIsModalOpen(true);
     }, []);
-
-    const handleEncryptionKeySet = useCallback((key: string) => {
-        setEncryptionKey(key);
-        setIsEncrypted(!!key);
-    }, []);
-
-    const toggleEncryption = useCallback(() => {
-        if (encryptionKey) {
-            // Remove encryption
-            setEncryptionKey(null);
-            setIsEncrypted(false);
-        } else {
-            // Add encryption
-            setShowEncryptionDialog(true);
-        }
-    }, [encryptionKey]);
 
     return (
         <div className="container mx-auto p-8">

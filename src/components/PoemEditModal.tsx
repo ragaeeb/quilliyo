@@ -30,6 +30,9 @@ export const PoemEditModal = memo(function PoemEditModal({
     const [poemTags, setPoemTags] = useState<string[]>(poem?.tags || []);
     const [category, setCategory] = useState(poem?.category || '');
     const [chapter, setChapter] = useState(poem?.chapter || '');
+    const [urls, setUrls] = useState<string[]>(
+        poem?.metadata?.urls ? poem.metadata.urls.split('\n').filter(Boolean) : [],
+    );
 
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -55,6 +58,17 @@ export const PoemEditModal = memo(function PoemEditModal({
             cleanPoem.lastUpdatedOn = new Date(lastUpdatedOn).toISOString();
         } else {
             cleanPoem.lastUpdatedOn = new Date().toISOString();
+        }
+
+        // Add metadata with urls if any urls exist
+        if (urls.length > 0) {
+            cleanPoem.metadata = { ...(poem?.metadata || {}), urls: urls.join('\n') };
+        } else if (poem?.metadata) {
+            // Preserve existing metadata but remove urls
+            const { urls: _, ...restMetadata } = poem.metadata;
+            if (Object.keys(restMetadata).length > 0) {
+                cleanPoem.metadata = restMetadata;
+            }
         }
 
         onSave(cleanPoem);
@@ -110,6 +124,11 @@ export const PoemEditModal = memo(function PoemEditModal({
                         </div>
 
                         <TagInput tags={poemTags} allTags={allTags} onTagsChange={setPoemTags} />
+
+                        <div>
+                            <Label>URLs</Label>
+                            <TagInput tags={urls} allTags={[]} onTagsChange={setUrls} placeholder="Add URL..." />
+                        </div>
 
                         <div className="grid grid-cols-2 gap-4">
                             <div>

@@ -1,57 +1,38 @@
-import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { auth } from '@clerk/nextjs/server';
 import { type NextRequest, NextResponse } from 'next/server';
+import { decrypt, encrypt } from '@/lib/security';
 
-const NOTEBOOK_PATH = path.join(process.cwd(), 'public', 'notebook.json');
-const ALGORITHM = 'aes-256-gcm';
-const KEY_LENGTH = 32;
-const IV_LENGTH = 16;
-const AUTH_TAG_LENGTH = 16;
-const SALT_LENGTH = 32;
+const NOTEBOOK_DIR = path.join(process.cwd(), 'public', 'notebooks');
 
-// Derive a key from the password using PBKDF2
-function deriveKey(password: string, salt: Buffer): Buffer {
-    return crypto.pbkdf2Sync(password, salt, 100000, KEY_LENGTH, 'sha256');
+// Ensure notebooks directory exists
+async function ensureNotebooksDir() {
+    try {
+        await fs.mkdir(NOTEBOOK_DIR, { recursive: true });
+    } catch (error) {
+        console.error('Error creating notebooks directory:', error);
+    }
 }
 
-// Encrypt data
-function encrypt(data: string, password: string): string {
-    const salt = crypto.randomBytes(SALT_LENGTH);
-    const key = deriveKey(password, salt);
-    const iv = crypto.randomBytes(IV_LENGTH);
-
-    const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
-    const encrypted = Buffer.concat([cipher.update(data, 'utf8'), cipher.final()]);
-    const authTag = cipher.getAuthTag();
-
-    // Combine salt + iv + authTag + encrypted data
-    const result = Buffer.concat([salt, iv, authTag, encrypted]);
-    return result.toString('base64');
-}
-
-// Decrypt data
-function decrypt(encryptedData: string, password: string): string {
-    const buffer = Buffer.from(encryptedData, 'base64');
-
-    // Extract components
-    const salt = buffer.subarray(0, SALT_LENGTH);
-    const iv = buffer.subarray(SALT_LENGTH, SALT_LENGTH + IV_LENGTH);
-    const authTag = buffer.subarray(SALT_LENGTH + IV_LENGTH, SALT_LENGTH + IV_LENGTH + AUTH_TAG_LENGTH);
-    const encrypted = buffer.subarray(SALT_LENGTH + IV_LENGTH + AUTH_TAG_LENGTH);
-
-    const key = deriveKey(password, salt);
-    const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
-    decipher.setAuthTag(authTag);
-
-    const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
-    return decrypted.toString('utf8');
+// Get user-specific notebook path
+function getUserNotebookPath(userId: string): string {
+    return path.join(NOTEBOOK_DIR, `${userId}.json`);
 }
 
 export async function GET(request: NextRequest) {
+    const { userId } = await auth();
+
+    if (!userId) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     try {
+        await ensureNotebooksDir();
+        const notebookPath = getUserNotebookPath(userId);
         const encryptionKey = request.headers.get('x-encryption-key');
-        const data = await fs.readFile(NOTEBOOK_PATH, 'utf-8');
+
+        const data = await fs.readFile(notebookPath, 'utf-8');
         const parsed = JSON.parse(data);
 
         // If the data is encrypted but no key provided
@@ -79,7 +60,15 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+    const { userId } = await auth();
+
+    if (!userId) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     try {
+        await ensureNotebooksDir();
+        const notebookPath = getUserNotebookPath(userId);
         const { data, encryptionKey } = await request.json();
 
         let dataToSave;
@@ -93,7 +82,7 @@ export async function POST(request: NextRequest) {
             dataToSave = data;
         }
 
-        await fs.writeFile(NOTEBOOK_PATH, JSON.stringify(dataToSave, null, 2));
+        await fs.writeFile(notebookPath, JSON.stringify(dataToSave, null, 2));
 
         return NextResponse.json({ success: true, timestamp: new Date().toISOString() });
     } catch (error) {

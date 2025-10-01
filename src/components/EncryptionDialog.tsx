@@ -31,7 +31,7 @@ export const EncryptionDialog = memo(function EncryptionDialog({
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent>
+            <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         {isEncrypted ? <Unlock className="h-5 w-5" /> : <Lock className="h-5 w-5" />}

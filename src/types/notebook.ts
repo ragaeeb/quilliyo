@@ -7,6 +7,7 @@ export interface Poem {
     chapter?: string;
     createdOn?: string;
     lastUpdatedOn?: string;
+    metadata?: Record<string, string>;
 }
 
 export interface Notebook {
