@@ -1,12 +1,12 @@
 # Quilliyo 📝
 
 [![wakatime](https://wakatime.com/badge/user/a0b906ce-b8e7-4463-8bce-383238df6d4b/project/8d2b207a-b1d7-4644-a927-af11fdbf25f5.svg)](https://wakatime.com/badge/user/a0b906ce-b8e7-4463-8bce-383238df6d4b/project/8d2b207a-b1d7-4644-a927-af11fdbf25f5)
-[![Vercel Deploy](https://deploy-badge.vercel.app/vercel/ilmtest)](https://ilmtest.vercel.app)
-[![codecov](https://codecov.io/gh/ragaeeb/ilmtest/graph/badge.svg?token=ZD0WHFWUF5)](https://codecov.io/gh/ragaeeb/ilmtest)
+[![Vercel Deploy](https://deploy-badge.vercel.app/vercel/quilliyo)](https://quilliyo.vercel.app)
+[![codecov](https://codecov.io/gh/ragaeeb/quilliyo/graph/badge.svg?token=A2E06C7QXO)](https://codecov.io/gh/ragaeeb/quilliyo)
 [![typescript](https://badgen.net/badge/icon/typescript?icon=typescript&label&color=blue)](https://www.typescriptlang.org)
-[![Node.js CI](https://github.com/ragaeeb/ilmtest/actions/workflows/build.yml/badge.svg)](https://github.com/ragaeeb/ilmtest/actions/workflows/build.yml)
+[![Node.js CI](https://github.com/ragaeeb/quilliyo/actions/workflows/build.yml/badge.svg)](https://github.com/ragaeeb/quilliyo/actions/workflows/build.yml)
 ![Bun](https://img.shields.io/badge/Bun-%23000000.svg?style=for-the-badge&logo=bun&logoColor=white)
-![GitHub License](https://img.shields.io/github/license/ragaeeb/ilmtest)
+![GitHub License](https://img.shields.io/github/license/ragaeeb/quilliyo)
 
 A secure, modern web application for managing poetry and creative writing with built-in encryption, tagging, and annotation features.
 
