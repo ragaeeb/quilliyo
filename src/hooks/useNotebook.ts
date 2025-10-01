@@ -81,9 +81,13 @@ export function useNotebook() {
 
     const toggleEncryption = useCallback(() => {
         if (encryptionKey) {
+            // Decrypt: remove the encryption key
+            // Important: we need to save immediately to persist the decrypted state
             setEncryptionKey(null);
             setIsEncrypted(false);
+            // The next save will store the notebook unencrypted
         } else {
+            // Encrypt: prompt for key
             setShowEncryptionDialog(true);
         }
     }, [encryptionKey]);

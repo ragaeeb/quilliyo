@@ -23,10 +23,12 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ poems: [] });
         }
 
+        // If encrypted but no key provided, tell client it needs the key
         if (notebook.encrypted && !encryptionKey) {
             return NextResponse.json({ encrypted: true, poems: [] });
         }
 
+        // If encrypted and key provided, decrypt
         if (notebook.encrypted && encryptionKey && notebook.data) {
             try {
                 const decryptedData = decrypt(notebook.data, encryptionKey);
@@ -37,6 +39,7 @@ export async function GET(request: NextRequest) {
             }
         }
 
+        // Not encrypted, return poems directly
         return NextResponse.json({ poems: notebook.poems || [] });
     } catch (error) {
         console.error('Error fetching notebook:', error);
@@ -58,14 +61,24 @@ export async function POST(request: NextRequest) {
         const { data, encryptionKey, notebookId } = await request.json();
         const targetNotebookId = notebookId || DEFAULT_NOTEBOOK_ID;
 
-        let dataToSave: { encrypted: boolean; data?: string; poems?: Array<any> };
+        let dataToSave: { encrypted: boolean; data?: string | null; poems?: Array<any> | null };
 
         if (encryptionKey) {
+            // Encrypt: store in 'data' field, clear 'poems'
             const jsonData = JSON.stringify(data, null, 2);
             const encryptedData = encrypt(jsonData, encryptionKey);
-            dataToSave = { encrypted: true, data: encryptedData };
+            dataToSave = {
+                encrypted: true,
+                data: encryptedData,
+                poems: null, // Clear unencrypted poems
+            };
         } else {
-            dataToSave = { encrypted: false, poems: data.poems };
+            // Unencrypted: store in 'poems' field, clear 'data'
+            dataToSave = {
+                encrypted: false,
+                poems: data.poems,
+                data: null, // Clear encrypted data
+            };
         }
 
         await upsertNotebook(user.id, dataToSave, targetNotebookId);

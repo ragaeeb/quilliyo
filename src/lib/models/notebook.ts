@@ -7,7 +7,7 @@ export interface NotebookDocument {
     user_id: string;
     notebook_id: string;
     encrypted?: boolean;
-    data?: string; // encrypted data
+    data?: string | null; // encrypted data - can be null when unencrypted
     poems?: Array<{
         id: string;
         title: string;
@@ -16,7 +16,7 @@ export interface NotebookDocument {
         tags?: string[];
         category?: string;
         chapter?: string;
-    }>;
+    }> | null; // can be null when encrypted
     updated_at: string;
     created_at: string;
 }
@@ -47,7 +47,7 @@ export async function getNotebook(
 
 export async function upsertNotebook(
     userId: string,
-    data: Partial<NotebookDocument>,
+    data: Partial<Omit<NotebookDocument, 'id' | 'user_id' | 'notebook_id' | 'created_at' | 'updated_at'>>,
     notebookId: string = DEFAULT_NOTEBOOK_ID,
 ): Promise<void> {
     const supabase = await createClient();
