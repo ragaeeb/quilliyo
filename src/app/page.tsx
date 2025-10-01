@@ -1,7 +1,8 @@
 'use client';
 
 import { format } from 'date-fns';
-import { Lock, Plus, Save, Search, Trash2, Unlock } from 'lucide-react';
+import { Lock, LogOut, Plus, Save, Search, Trash2, Unlock } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useCallback, useState } from 'react';
 import { EncryptionDialog } from '@/components/EncryptionDialog';
 import { PoemCard } from '@/components/PoemCard';
@@ -12,9 +13,13 @@ import { Input } from '@/components/ui/input';
 import { useMetadata } from '@/hooks/useMetadata';
 import { useNotebook } from '@/hooks/useNotebook';
 import { useSearch } from '@/hooks/useSearch';
+import { createClient } from '@/lib/supabase/client';
 import type { Poem } from '@/types/notebook';
 
 export default function Home() {
+    const router = useRouter();
+    const supabase = createClient();
+
     const {
         notebook,
         encryptionKey,
@@ -35,6 +40,12 @@ export default function Home() {
     const [selectedPoem, setSelectedPoem] = useState<Poem | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+    const handleLogout = async () => {
+        await supabase.auth.signOut();
+        router.push('/auth/login');
+        router.refresh();
+    };
 
     const createNewPoem = useCallback(() => {
         const newPoem: Poem = {
@@ -97,6 +108,10 @@ export default function Home() {
                         <Button onClick={saveNotebook} size="sm">
                             <Save className="mr-2 h-4 w-4" />
                             Save
+                        </Button>
+                        <Button onClick={handleLogout} variant="outline" size="sm">
+                            <LogOut className="mr-2 h-4 w-4" />
+                            Logout
                         </Button>
                     </div>
                 </div>

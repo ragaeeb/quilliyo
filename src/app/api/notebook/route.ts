@@ -1,33 +1,32 @@
-import { auth } from '@clerk/nextjs/server';
 import { type NextRequest, NextResponse } from 'next/server';
 import { DEFAULT_NOTEBOOK_ID, getNotebook, upsertNotebook } from '@/lib/models/notebook';
 import { decrypt, encrypt } from '@/lib/security';
+import { createClient } from '@/lib/supabase/server';
 
 export async function GET(request: NextRequest) {
-    const { userId } = await auth();
+    const supabase = await createClient();
+    const {
+        data: { user },
+    } = await supabase.auth.getUser();
 
-    if (!userId) {
+    if (!user) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     try {
         const encryptionKey = request.headers.get('x-encryption-key');
-        // Support notebookId query param for future multi-notebook support
         const notebookId = request.nextUrl.searchParams.get('notebookId') || DEFAULT_NOTEBOOK_ID;
 
-        const notebook = await getNotebook(userId, notebookId);
+        const notebook = await getNotebook(user.id, notebookId);
 
         if (!notebook) {
-            // Return empty notebook if doesn't exist
             return NextResponse.json({ poems: [] });
         }
 
-        // If the data is encrypted but no key provided
         if (notebook.encrypted && !encryptionKey) {
             return NextResponse.json({ encrypted: true, poems: [] });
         }
 
-        // If the data is encrypted and key is provided, decrypt it
         if (notebook.encrypted && encryptionKey && notebook.data) {
             try {
                 const decryptedData = decrypt(notebook.data, encryptionKey);
@@ -38,7 +37,6 @@ export async function GET(request: NextRequest) {
             }
         }
 
-        // Data is not encrypted
         return NextResponse.json({ poems: notebook.poems || [] });
     } catch (error) {
         console.error('Error fetching notebook:', error);
@@ -47,9 +45,12 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-    const { userId } = await auth();
+    const supabase = await createClient();
+    const {
+        data: { user },
+    } = await supabase.auth.getUser();
 
-    if (!userId) {
+    if (!user) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -60,7 +61,6 @@ export async function POST(request: NextRequest) {
         let dataToSave: { encrypted: boolean; data?: string; poems?: Array<any> };
 
         if (encryptionKey) {
-            // Encrypt the data
             const jsonData = JSON.stringify(data, null, 2);
             const encryptedData = encrypt(jsonData, encryptionKey);
             dataToSave = { encrypted: true, data: encryptedData };
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
             dataToSave = { encrypted: false, poems: data.poems };
         }
 
-        await upsertNotebook(userId, dataToSave, targetNotebookId);
+        await upsertNotebook(user.id, dataToSave, targetNotebookId);
 
         return NextResponse.json({ success: true, timestamp: new Date().toISOString() });
     } catch (error) {

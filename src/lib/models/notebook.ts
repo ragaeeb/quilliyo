@@ -1,10 +1,11 @@
-import getClientPromise from '@/lib/mongodb';
+import { createClient } from '@/lib/supabase/server';
 
 export const DEFAULT_NOTEBOOK_ID = 'default';
 
 export interface NotebookDocument {
-    userId: string;
-    notebookId: string; // NEW: identifier for the notebook
+    id: string;
+    user_id: string;
+    notebook_id: string;
     encrypted?: boolean;
     data?: string; // encrypted data
     poems?: Array<{
@@ -16,22 +17,32 @@ export interface NotebookDocument {
         category?: string;
         chapter?: string;
     }>;
-    updatedAt: Date;
-    createdAt: Date;
-}
-
-export async function getNotebookCollection() {
-    const client = await getClientPromise();
-    const db = client.db('quilliyo');
-    return db.collection<NotebookDocument>('notebooks');
+    updated_at: string;
+    created_at: string;
 }
 
 export async function getNotebook(
     userId: string,
     notebookId: string = DEFAULT_NOTEBOOK_ID,
 ): Promise<NotebookDocument | null> {
-    const collection = await getNotebookCollection();
-    return await collection.findOne({ userId, notebookId });
+    const supabase = await createClient();
+
+    const { data, error } = await supabase
+        .from('notebooks')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('notebook_id', notebookId)
+        .single();
+
+    if (error) {
+        if (error.code === 'PGRST116') {
+            // No rows returned
+            return null;
+        }
+        throw error;
+    }
+
+    return data;
 }
 
 export async function upsertNotebook(
@@ -39,24 +50,43 @@ export async function upsertNotebook(
     data: Partial<NotebookDocument>,
     notebookId: string = DEFAULT_NOTEBOOK_ID,
 ): Promise<void> {
-    const collection = await getNotebookCollection();
-    await collection.updateOne(
-        { userId, notebookId },
-        { $set: { ...data, updatedAt: new Date() }, $setOnInsert: { userId, notebookId, createdAt: new Date() } },
-        { upsert: true },
-    );
+    const supabase = await createClient();
+
+    const { error } = await supabase
+        .from('notebooks')
+        .upsert({ user_id: userId, notebook_id: notebookId, ...data }, { onConflict: 'user_id,notebook_id' });
+
+    if (error) {
+        throw error;
+    }
 }
 
-// NEW: Helper functions for future multi-notebook support
 export async function listNotebooks(userId: string): Promise<NotebookDocument[]> {
-    const collection = await getNotebookCollection();
-    return await collection.find({ userId }).sort({ createdAt: -1 }).toArray();
+    const supabase = await createClient();
+
+    const { data, error } = await supabase
+        .from('notebooks')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        throw error;
+    }
+
+    return data || [];
 }
 
 export async function deleteNotebook(userId: string, notebookId: string): Promise<void> {
     if (notebookId === DEFAULT_NOTEBOOK_ID) {
         throw new Error('Cannot delete the default notebook');
     }
-    const collection = await getNotebookCollection();
-    await collection.deleteOne({ userId, notebookId });
+
+    const supabase = await createClient();
+
+    const { error } = await supabase.from('notebooks').delete().eq('user_id', userId).eq('notebook_id', notebookId);
+
+    if (error) {
+        throw error;
+    }
 }
