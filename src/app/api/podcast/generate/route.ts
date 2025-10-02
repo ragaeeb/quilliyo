@@ -11,7 +11,10 @@ const generateWithGeminiTTS = async (transcript: string) => {
     );
 };
 
-const generateWithAzureSpeech = async (transcript: string) => {
+const generateWithAzureSpeech = async (
+    transcript: string,
+    voiceConfig?: { alex?: string; jordan?: string; narrator?: string },
+) => {
     const apiKey = process.env.AZURE_SPEECH_KEY;
     const region = process.env.AZURE_SPEECH_REGION || 'eastus';
 
@@ -24,10 +27,19 @@ const generateWithAzureSpeech = async (transcript: string) => {
 
         if (isDebate) {
             const segments = parseDebateTranscript(transcript);
+
+            if (segments.length === 0) {
+                console.error('No segments parsed from transcript');
+                return NextResponse.json({ error: 'Failed to parse debate transcript' }, { status: 500 });
+            }
+
             const audioBuffers = [];
 
             for (const segment of segments) {
-                const voice = segment.speaker === 'ALEX' ? 'en-US-GuyNeural' : 'en-US-JennyNeural';
+                const voice =
+                    segment.speaker === 'ALEX'
+                        ? voiceConfig?.alex || 'en-US-GuyNeural'
+                        : voiceConfig?.jordan || 'en-US-JennyNeural';
                 const ssml = createSSML(segment.text, voice);
 
                 const response = await fetch(`https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`, {
@@ -35,12 +47,14 @@ const generateWithAzureSpeech = async (transcript: string) => {
                     headers: {
                         'Content-Type': 'application/ssml+xml',
                         'Ocp-Apim-Subscription-Key': apiKey,
-                        'X-Microsoft-OutputFormat': 'audio-16khz-32kbitrate-mono-mp3',
+                        'X-Microsoft-OutputFormat': 'audio-16khz-128kbitrate-mono-mp3',
                     },
                     method: 'POST',
                 });
 
                 if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Azure TTS error:', errorText);
                     throw new Error(`Azure TTS failed: ${response.statusText}`);
                 }
 
@@ -58,19 +72,22 @@ const generateWithAzureSpeech = async (transcript: string) => {
 
             return NextResponse.json({ audioBase64: base64Audio, audioUrl: `/podcast-${timestamp}.mp3` });
         } else {
-            const ssml = createSSML(transcript, 'en-US-AriaNeural');
+            const voice = voiceConfig?.narrator || 'en-US-AriaNeural';
+            const ssml = createSSML(transcript, voice);
 
             const response = await fetch(`https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`, {
                 body: ssml,
                 headers: {
                     'Content-Type': 'application/ssml+xml',
                     'Ocp-Apim-Subscription-Key': apiKey,
-                    'X-Microsoft-OutputFormat': 'audio-16khz-32kbitrate-mono-mp3',
+                    'X-Microsoft-OutputFormat': 'audio-16khz-128kbitrate-mono-mp3',
                 },
                 method: 'POST',
             });
 
             if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Azure TTS error:', errorText);
                 throw new Error(`Azure TTS failed: ${response.statusText}`);
             }
 
@@ -97,42 +114,53 @@ const parseDebateTranscript = (transcript: string) => {
     let currentText = '';
 
     for (const line of lines) {
-        const alexMatch = line.match(/^ALEX:\s*(.+)$/);
-        const jordanMatch = line.match(/^JORDAN:\s*(.+)$/);
+        const trimmedLine = line.trim();
+        if (!trimmedLine) {
+            continue;
+        }
+
+        // More robust regex patterns
+        const alexMatch = trimmedLine.match(/^ALEX:\s*(.*)$/i);
+        const jordanMatch = trimmedLine.match(/^JORDAN:\s*(.*)$/i);
 
         if (alexMatch) {
-            if (currentSpeaker && currentText) {
+            if (currentSpeaker && currentText.trim()) {
                 segments.push({ speaker: currentSpeaker, text: currentText.trim() });
             }
             currentSpeaker = 'ALEX';
-            currentText = alexMatch[1];
+            currentText = alexMatch[1] || '';
         } else if (jordanMatch) {
-            if (currentSpeaker && currentText) {
+            if (currentSpeaker && currentText.trim()) {
                 segments.push({ speaker: currentSpeaker, text: currentText.trim() });
             }
             currentSpeaker = 'JORDAN';
-            currentText = jordanMatch[1];
-        } else if (currentSpeaker && line.trim()) {
-            currentText += ` ${line.trim()}`;
+            currentText = jordanMatch[1] || '';
+        } else if (currentSpeaker) {
+            // Continue the current speaker's text
+            currentText += ` ${trimmedLine}`;
         }
     }
 
-    if (currentSpeaker && currentText) {
+    // Don't forget the last segment
+    if (currentSpeaker && currentText.trim()) {
         segments.push({ speaker: currentSpeaker, text: currentText.trim() });
     }
 
+    console.log(`Parsed ${segments.length} segments from transcript`);
     return segments;
 };
 
 const createSSML = (text: string, voice: string) => {
-    const processedText = text
-        .replace(/\.\.\./g, '<break time="500ms"/>')
-        .replace(/--/g, '<break time="300ms"/>')
+    // First escape XML special characters
+    let processedText = text
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&apos;');
+
+    // Then add break tags (after escaping to avoid escaping the tags themselves)
+    processedText = processedText.replace(/\.\.\./g, '<break time="500ms"/>').replace(/--/g, '<break time="300ms"/>');
 
     return `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="en-US">
         <voice name="${voice}">
@@ -158,12 +186,12 @@ const combineAudioBuffers = (buffers: ArrayBuffer[]) => {
 
 const handler = async (request: NextRequest) => {
     try {
-        const { transcript, platform }: PodcastGenerationRequest = await request.json();
+        const { transcript, platform, voiceConfig }: PodcastGenerationRequest = await request.json();
 
         if (platform === 'google-gemini') {
             return generateWithGeminiTTS(transcript);
         }
-        return generateWithAzureSpeech(transcript);
+        return generateWithAzureSpeech(transcript, voiceConfig);
     } catch (error) {
         console.error('Error generating podcast:', error);
         return NextResponse.json({ error: 'Failed to generate podcast' }, { status: 500 });

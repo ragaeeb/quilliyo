@@ -8,17 +8,22 @@ const generateExpertAnalysisPrompt = (poems: TranscriptGenerationRequest['poems'
 
     return `You are an expert poetry analyst hosting a podcast. Create a natural, engaging 10-minute podcast transcript analyzing the following poem(s). 
 
+CRITICAL REQUIREMENTS:
+- DO NOT mention any music, sound effects, intro music, outro music, or background sounds
+- DO NOT include stage directions like [music fades], [intro music], or [outro]
+- Start directly with your spoken introduction
+- The transcript should ONLY contain the words you will speak
+
 The transcript should:
-- Not mention any kind of music or sound effects (no intro music or outro).
-- Start with a warm introduction
+- Start with a warm spoken introduction
 - Provide deep analysis of metaphors, themes, and writing style
 - Point out interesting literary devices
 - Discuss the emotional impact and meaning
 - Include natural speech patterns, pauses (indicated with "..."), and emphasis
 - Sound conversational and engaging, not academic
-- End with thoughtful conclusions
+- End with thoughtful spoken conclusions
 
-Format the transcript as a continuous monologue with natural speaking rhythm.
+Format the transcript as a continuous monologue with natural speaking rhythm. ONLY include spoken words - no music cues or sound effect descriptions.
 
 Poems to analyze:
 ${poemTexts}
@@ -29,21 +34,27 @@ Generate the complete transcript:`;
 const generateDebatePrompt = (poems: TranscriptGenerationRequest['poems']) => {
     const poemTexts = poems.map((p) => `Title: "${p.title}"\n${p.content}`).join('\n\n---\n\n');
 
-    return `Create a natural, engaging 10-minute podcast transcript featuring two expert poetry analysts (Alex and Jordan) debating the following poem(s).
+    return `Create a natural, engaging 10-minute podcast transcript featuring two expert poetry analysts (ALEX and JORDAN) debating the following poem(s).
+
+CRITICAL REQUIREMENTS:
+- DO NOT mention any music, sound effects, intro music, outro music, or background sounds
+- DO NOT include stage directions like [music fades], [intro music], or [outro]
+- Start directly with the speakers talking
+- The transcript should ONLY contain the words the speakers will say
 
 The transcript should:
-- Start with both hosts introducing themselves and the topic
+- Start with both hosts introducing themselves and the topic (spoken words only)
 - Feature genuine disagreement on interpretation of themes, metaphors, or meaning
 - Include interruptions, agreements, and respectful challenges
 - Have natural back-and-forth dialogue with personality
 - Include moments of discovery and changing perspectives
-- End with each summarizing their position
+- End with each summarizing their position (spoken words only)
 
 Format as:
-ALEX: [dialogue]
-JORDAN: [dialogue]
+ALEX: [their spoken dialogue]
+JORDAN: [their spoken dialogue]
 
-Use "..." for pauses, and include natural speech patterns.
+Use "..." for pauses, and include natural speech patterns. ONLY include spoken words - no music cues or sound effect descriptions.
 
 Poems to debate:
 ${poemTexts}

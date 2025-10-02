@@ -1,17 +1,23 @@
-export type PodcastStyle = 'expert-analysis' | 'two-player-debate';
-export type TTSPlatform = 'google-gemini' | 'azure-speech';
+export type PodcastStyle = 'expert-analysis' | 'debate';
+export type TTSPlatform = 'azure-speech' | 'google-gemini';
 
-export type TranscriptGenerationRequest = {
-    poems: Array<{ title: string; content: string; tags?: string[]; category?: string }>;
-    style: PodcastStyle;
+export const PODCAST_STYLES: Record<PodcastStyle, string> = {
+    debate: 'Debate Discussion',
+    'expert-analysis': 'Expert Analysis',
 };
 
-export type TranscriptGenerationResponse = { transcript: string; duration: string };
+export const TTS_PLATFORMS: Record<TTSPlatform, string> = {
+    'azure-speech': 'Azure Speech',
+    'google-gemini': 'Google Gemini (Coming Soon)',
+};
 
-export type PodcastGenerationRequest = { transcript: string; platform: TTSPlatform };
+export interface TranscriptGenerationRequest {
+    poems: Array<{ title: string; content: string; category?: string; tags?: string[] }>;
+    style: PodcastStyle;
+}
 
-export type PodcastGenerationResponse = { audioUrl?: string; audioBase64?: string; error?: string };
-
-export const PODCAST_STYLES = { 'expert-analysis': 'Expert Analysis', 'two-player-debate': '2 Player Debate' } as const;
-
-export const TTS_PLATFORMS = { 'azure-speech': 'Azure AI Speech', 'google-gemini': 'Google Gemini TTS' } as const;
+export interface PodcastGenerationRequest {
+    transcript: string;
+    platform: TTSPlatform;
+    voiceConfig?: { narrator?: string; alex?: string; jordan?: string };
+}
