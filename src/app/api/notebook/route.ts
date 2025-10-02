@@ -1,33 +1,48 @@
-import { auth } from '@clerk/nextjs/server';
 import { type NextRequest, NextResponse } from 'next/server';
 import { DEFAULT_NOTEBOOK_ID, getNotebook, upsertNotebook } from '@/lib/models/notebook';
 import { decrypt, encrypt } from '@/lib/security';
+import { createClient } from '@/lib/supabase/server';
+
+const authenticateRequest = async () => {
+    const supabase = await createClient();
+    const {
+        data: { user },
+        error: authError,
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+        if (authError) {
+            console.error('Authentication error:', authError);
+        }
+        return { user: null, error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
+    }
+
+    return { user, error: null };
+};
 
 export async function GET(request: NextRequest) {
-    const { userId } = await auth();
+    const { user, error } = await authenticateRequest();
 
-    if (!userId) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (error) {
+        return error;
     }
 
     try {
         const encryptionKey = request.headers.get('x-encryption-key');
-        // Support notebookId query param for future multi-notebook support
         const notebookId = request.nextUrl.searchParams.get('notebookId') || DEFAULT_NOTEBOOK_ID;
 
-        const notebook = await getNotebook(userId, notebookId);
+        const notebook = await getNotebook(user.id, notebookId);
 
         if (!notebook) {
-            // Return empty notebook if doesn't exist
             return NextResponse.json({ poems: [] });
         }
 
-        // If the data is encrypted but no key provided
+        // If encrypted but no key provided, tell client it needs the key
         if (notebook.encrypted && !encryptionKey) {
             return NextResponse.json({ encrypted: true, poems: [] });
         }
 
-        // If the data is encrypted and key is provided, decrypt it
+        // If encrypted and key provided, decrypt
         if (notebook.encrypted && encryptionKey && notebook.data) {
             try {
                 const decryptedData = decrypt(notebook.data, encryptionKey);
@@ -38,7 +53,7 @@ export async function GET(request: NextRequest) {
             }
         }
 
-        // Data is not encrypted
+        // Not encrypted, return poems directly
         return NextResponse.json({ poems: notebook.poems || [] });
     } catch (error) {
         console.error('Error fetching notebook:', error);
@@ -47,28 +62,37 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-    const { userId } = await auth();
+    const { user, error } = await authenticateRequest();
 
-    if (!userId) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (error) {
+        return error;
     }
 
     try {
         const { data, encryptionKey, notebookId } = await request.json();
         const targetNotebookId = notebookId || DEFAULT_NOTEBOOK_ID;
 
-        let dataToSave: { encrypted: boolean; data?: string; poems?: Array<any> };
+        let dataToSave: { encrypted: boolean; data?: string | null; poems?: Array<any> | null };
 
         if (encryptionKey) {
-            // Encrypt the data
+            // Encrypt: store in 'data' field, clear 'poems'
             const jsonData = JSON.stringify(data, null, 2);
             const encryptedData = encrypt(jsonData, encryptionKey);
-            dataToSave = { encrypted: true, data: encryptedData };
+            dataToSave = {
+                encrypted: true,
+                data: encryptedData,
+                poems: null, // Clear unencrypted poems
+            };
         } else {
-            dataToSave = { encrypted: false, poems: data.poems };
+            // Unencrypted: store in 'poems' field, clear 'data'
+            dataToSave = {
+                encrypted: false,
+                poems: data.poems,
+                data: null, // Clear encrypted data
+            };
         }
 
-        await upsertNotebook(userId, dataToSave, targetNotebookId);
+        await upsertNotebook(user.id, dataToSave, targetNotebookId);
 
         return NextResponse.json({ success: true, timestamp: new Date().toISOString() });
     } catch (error) {

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import type { Notebook, Poem } from '@/types/notebook';
 
 export function useNotebook() {
@@ -22,17 +23,18 @@ export function useNotebook() {
                 if (data.error) {
                     alert('Invalid encryption key');
                     setEncryptionKey(null);
+                    setIsEncrypted(true); // DB content is encrypted
+                    setShowEncryptionDialog(true); // re-prompt
+                    setNotebook({ poems: [] });
+                    setLastSaved(null);
                     return;
                 }
 
-                if (data.encrypted) {
-                    setIsEncrypted(true);
-                    setShowEncryptionDialog(true);
-                    return;
-                }
-
+                // Successfully loaded (either unencrypted, or decrypted with key)
                 setNotebook(data);
-                setIsEncrypted(false);
+                setShowEncryptionDialog(false);
+                // Reflect DB state if provided; fallback to false
+                setIsEncrypted(Boolean((data as any)?.encrypted));
             } catch (error) {
                 console.error('Failed to load notebook:', error);
             }
@@ -44,13 +46,17 @@ export function useNotebook() {
     const saveNotebook = useCallback(async () => {
         try {
             const res = await fetch('/api/notebook', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ data: notebook, encryptionKey }),
+                headers: { 'Content-Type': 'application/json' },
+                method: 'POST',
             });
             const result = await res.json();
             if (result.success) {
                 setLastSaved(result.timestamp);
+                // After saving, prefer server truth; fallback to local key usage
+                setIsEncrypted(result.encrypted ?? !!encryptionKey);
+
+                toast.success('Saved!');
             }
         } catch (error) {
             console.error('Failed to save:', error);
@@ -76,29 +82,44 @@ export function useNotebook() {
 
     const handleEncryptionKeySet = useCallback((key: string) => {
         setEncryptionKey(key);
-        setIsEncrypted(!!key);
+        setShowEncryptionDialog(false);
     }, []);
 
-    const toggleEncryption = useCallback(() => {
+    const toggleEncryption = useCallback(async () => {
         if (encryptionKey) {
-            setEncryptionKey(null);
-            setIsEncrypted(false);
+            // Remove encryption: save as unencrypted immediately
+            try {
+                const res = await fetch('/api/notebook', {
+                    body: JSON.stringify({ data: notebook, encryptionKey: null }),
+                    headers: { 'Content-Type': 'application/json' },
+                    method: 'POST',
+                });
+                const result = await res.json();
+                if (result.success) {
+                    setEncryptionKey(null);
+                    setIsEncrypted(false);
+                    setLastSaved(result.timestamp);
+                }
+            } catch (error) {
+                console.error('Failed to remove encryption:', error);
+            }
         } else {
+            // Add encryption: prompt for key
             setShowEncryptionDialog(true);
         }
-    }, [encryptionKey]);
+    }, [encryptionKey, notebook]);
 
     return {
-        notebook,
-        encryptionKey,
-        isEncrypted,
-        showEncryptionDialog,
-        setShowEncryptionDialog,
-        lastSaved,
-        saveNotebook,
-        handleSavePoem,
         deletePoems,
+        encryptionKey,
         handleEncryptionKeySet,
+        handleSavePoem,
+        isEncrypted,
+        lastSaved,
+        notebook,
+        saveNotebook,
+        setShowEncryptionDialog,
+        showEncryptionDialog,
         toggleEncryption,
     };
 }
