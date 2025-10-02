@@ -20,6 +20,11 @@ export function useRevisions(poemId: string | null, notebookId = 'default') {
         try {
             const params = new URLSearchParams({ notebookId, poemId });
             const res = await fetch(`/api/revisions?${params}`);
+
+            if (!res.ok) {
+                throw new Error(`Failed to load revisions: ${res.statusText}`);
+            }
+
             const data = await res.json();
 
             if (data.error) {
