@@ -45,11 +45,11 @@
     },
     "homepage": "https://github.com/ragaeeb/quilliyo",
     "license": "MIT",
-    "name": "quill",
+    "name": "quilliyo",
     "private": true,
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/quilliyo/quilliyo.git"
+        "url": "git+https://github.com/ragaeeb/quilliyo.git"
     },
     "scripts": {
         "build": "next build --turbopack",
