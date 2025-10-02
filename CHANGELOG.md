@@ -1,3 +1,10 @@
+# [1.2.0](https://github.com/ragaeeb/quilliyo/compare/v1.1.0...v1.2.0) (2025-10-02)
+
+
+### Features
+
+* **revisions:** Add revision support ([#3](https://github.com/ragaeeb/quilliyo/issues/3)) ([8b41093](https://github.com/ragaeeb/quilliyo/commit/8b41093e10e61ac36e5032994ffb5de56110b8eb))
+
 # [1.1.0](https://github.com/ragaeeb/quilliyo/compare/v1.0.0...v1.1.0) (2025-10-02)
 
 
