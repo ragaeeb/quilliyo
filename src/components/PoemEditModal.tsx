@@ -1,24 +1,19 @@
 import { MessageSquare } from 'lucide-react';
-import { memo, useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import {
-    Drawer,
-    DrawerClose,
-    DrawerContent,
-    DrawerDescription,
-    DrawerFooter,
-    DrawerHeader,
-    DrawerTitle,
-} from '@/components/ui/drawer';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { usePoemEditState } from '@/hooks/usePoemEditState';
+import { useTextSelection } from '@/hooks/useTextSelection';
+import { useThoughtActions } from '@/hooks/useThoughtActions';
+import { useThoughtDrawer } from '@/hooks/useThoughtDrawer';
+import { buildPoemForSave } from '@/lib/poemSaveUtils';
 import type { Poem, Thought } from '@/types/notebook';
 import ContentEditor from './ContentEditor';
 import FontSizeControl from './FontSizeControl';
 import MetadataForm from './MetadataForm';
-import MultipleThoughtsDisplay from './MultipleThoughtsDisplay';
-import ThoughtEditor from './ThoughtEditor';
+import ThoughtDrawer from './ThoughtDrawer';
 
 interface PoemEditModalProps {
     poem: Poem | null;
@@ -39,190 +34,128 @@ export const PoemEditModal = memo(function PoemEditModal({
     allCategories,
     allChapters,
 }: PoemEditModalProps) {
-    const [poemTags, setPoemTags] = useState<string[]>(poem?.tags || []);
-    const [category, setCategory] = useState(poem?.category || '');
-    const [chapter, setChapter] = useState(poem?.chapter || '');
-    const [urls, setUrls] = useState<string[]>(
-        poem?.metadata?.urls ? poem.metadata.urls.split('\n').filter(Boolean) : [],
-    );
-    const [fontSize, setFontSize] = useState(14);
-    const [thoughts, setThoughts] = useState<Thought[]>(
-        poem?.metadata?.thoughts ? JSON.parse(poem.metadata.thoughts) : [],
-    );
-    const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-    const [currentThought, setCurrentThought] = useState('');
-    const [selectedRange, setSelectedRange] = useState<{ start: number; end: number; text: string } | null>(null);
-    const [editingThought, setEditingThought] = useState<Thought | null>(null);
-    const [viewingThoughtIds, setViewingThoughtIds] = useState<string[]>([]);
-    const [content, setContent] = useState(poem?.content || '');
-    const [title, setTitle] = useState(poem?.title || '');
-    const [createdOn, setCreatedOn] = useState(
-        poem?.createdOn ? new Date(poem.createdOn).toISOString().split('T')[0] : '',
-    );
-    const [lastUpdatedOn, setLastUpdatedOn] = useState(
-        poem?.lastUpdatedOn ? new Date(poem.lastUpdatedOn).toISOString().split('T')[0] : '',
-    );
     const contentEditableRef = useRef<HTMLDivElement>(null);
 
-    useEffect(() => {
-        setContent(poem?.content || '');
-        setTitle(poem?.title || '');
-        setPoemTags(poem?.tags || []);
-        setCategory(poem?.category || '');
-        setChapter(poem?.chapter || '');
-        setUrls(poem?.metadata?.urls ? poem.metadata.urls.split('\n').filter(Boolean) : []);
-        setThoughts(poem?.metadata?.thoughts ? JSON.parse(poem.metadata.thoughts) : []);
-        setCreatedOn(poem?.createdOn ? new Date(poem.createdOn).toISOString().split('T')[0] : '');
-        setLastUpdatedOn(poem?.lastUpdatedOn ? new Date(poem.lastUpdatedOn).toISOString().split('T')[0] : '');
-    }, [poem]);
+    const {
+        content,
+        setContent,
+        title,
+        setTitle,
+        poemTags,
+        setPoemTags,
+        category,
+        setCategory,
+        chapter,
+        setChapter,
+        urls,
+        setUrls,
+        thoughts,
+        setThoughts,
+        createdOn,
+        setCreatedOn,
+        lastUpdatedOn,
+        setLastUpdatedOn,
+        fontSize,
+        setFontSize,
+    } = usePoemEditState(poem);
+
+    const { getSelectedRange } = useTextSelection(contentEditableRef);
+
+    const {
+        isDrawerOpen,
+        setIsDrawerOpen,
+        currentThought,
+        setCurrentThought,
+        selectedRange,
+        editingThought,
+        viewingThoughtIds,
+        openForNewThought,
+        openForViewing,
+        openForEditing,
+        resetForNewThought,
+        closeDrawer,
+    } = useThoughtDrawer();
+
+    const { saveThought, deleteThought, getRelatedThoughts } = useThoughtActions(thoughts, setThoughts);
 
     const handleAddThought = useCallback(() => {
-        const selection = window.getSelection();
-        if (!selection || selection.rangeCount === 0) {
+        const range = getSelectedRange();
+        if (!range) {
             alert('Please select some text first');
             return;
         }
-
-        const range = selection.getRangeAt(0);
-        const selectedText = selection.toString();
-
-        if (!selectedText || selectedText.trim() === '') {
-            alert('Please select some text first');
-            return;
-        }
-
-        const preSelectionRange = range.cloneRange();
-        preSelectionRange.selectNodeContents(contentEditableRef.current!);
-        preSelectionRange.setEnd(range.startContainer, range.startOffset);
-        const start = preSelectionRange.toString().length;
-        const end = start + selectedText.length;
-
-        setSelectedRange({ start, end, text: selectedText });
-        setCurrentThought('');
-        setEditingThought(null);
-        setViewingThoughtIds([]);
-        setIsDrawerOpen(true);
-    }, []);
+        openForNewThought(range);
+    }, [getSelectedRange, openForNewThought]);
 
     const handleSaveThought = useCallback(() => {
-        if (!currentThought.trim()) {
-            alert('Please write a thought');
-            return;
+        const success = saveThought(currentThought, editingThought, selectedRange);
+        if (success) {
+            closeDrawer();
         }
+    }, [currentThought, editingThought, selectedRange, saveThought, closeDrawer]);
 
-        if (editingThought) {
-            setThoughts((prev) => prev.map((t) => (t.id === editingThought.id ? { ...t, text: currentThought } : t)));
-        } else if (selectedRange) {
-            const newThought: Thought = {
-                id: Date.now().toString(),
-                text: currentThought,
-                selectedText: selectedRange.text,
-                startIndex: selectedRange.start,
-                endIndex: selectedRange.end,
-                createdAt: new Date().toISOString(),
-            };
-            setThoughts((prev) => [...prev, newThought]);
-        }
+    const handleDeleteThought = useCallback(
+        (thoughtId: string) => {
+            deleteThought(thoughtId);
+            closeDrawer();
+        },
+        [deleteThought, closeDrawer],
+    );
 
-        setIsDrawerOpen(false);
-        setCurrentThought('');
-        setSelectedRange(null);
-        setEditingThought(null);
-        setViewingThoughtIds([]);
-    }, [currentThought, editingThought, selectedRange]);
-
-    const handleDeleteThought = useCallback((thoughtId: string) => {
-        setThoughts((prev) => prev.filter((t) => t.id !== thoughtId));
-        setIsDrawerOpen(false);
-        setViewingThoughtIds([]);
-    }, []);
-
-    const handleEditThought = useCallback((thought: Thought) => {
-        setEditingThought(thought);
-        setCurrentThought(thought.text);
-        setViewingThoughtIds([]);
-    }, []);
+    const handleEditThought = useCallback(
+        (thought: Thought) => {
+            openForEditing(thought);
+        },
+        [openForEditing],
+    );
 
     const handleThoughtClick = useCallback(
         (thoughtId: string) => {
-            // Find all thoughts that share the same selection
-            const clickedThought = thoughts.find((t) => t.id === thoughtId);
-            if (clickedThought) {
-                const relatedThoughts = thoughts.filter(
-                    (t) =>
-                        t.selectedText === clickedThought.selectedText &&
-                        t.startIndex === clickedThought.startIndex &&
-                        t.endIndex === clickedThought.endIndex,
+            const relatedThoughts = getRelatedThoughts(thoughtId);
+            if (relatedThoughts.length > 0) {
+                const firstThought = relatedThoughts[0];
+                openForViewing(
+                    relatedThoughts.map((t) => t.id),
+                    { end: firstThought.endIndex, start: firstThought.startIndex, text: firstThought.selectedText },
                 );
-                setViewingThoughtIds(relatedThoughts.map((t) => t.id));
-                setEditingThought(null);
-                setCurrentThought('');
-                setSelectedRange({
-                    start: clickedThought.startIndex,
-                    end: clickedThought.endIndex,
-                    text: clickedThought.selectedText,
-                });
-                setIsDrawerOpen(true);
             }
         },
-        [thoughts],
+        [getRelatedThoughts, openForViewing],
     );
 
     const handleAddAnotherThought = useCallback(() => {
-        if (selectedRange) {
-            setCurrentThought('');
-            setEditingThought(null);
-            setViewingThoughtIds([]);
-        }
-    }, [selectedRange]);
+        resetForNewThought();
+    }, [resetForNewThought]);
 
     const handleContentChange = useCallback(() => {
         if (contentEditableRef.current) {
             const newContent = contentEditableRef.current.innerText;
             setContent(newContent);
         }
-    }, []);
+    }, [setContent]);
 
     const handleSave = useCallback(() => {
-        const cleanPoem: Poem = {
-            id: poem?.id || Date.now().toString(),
-            title: title || 'Untitled',
-            content: content || '',
-        };
-
-        if (poemTags.length > 0) cleanPoem.tags = poemTags;
-        if (category) cleanPoem.category = category;
-        if (chapter) cleanPoem.chapter = chapter;
-        if (createdOn) cleanPoem.createdOn = new Date(createdOn).toISOString();
-        if (lastUpdatedOn) {
-            cleanPoem.lastUpdatedOn = new Date(lastUpdatedOn).toISOString();
-        } else {
-            cleanPoem.lastUpdatedOn = new Date().toISOString();
-        }
-
-        const metadata: any = { ...(poem?.metadata || {}) };
-
-        if (urls.length > 0) {
-            metadata.urls = urls.join('\n');
-        }
-
-        if (thoughts.length > 0) {
-            metadata.thoughts = JSON.stringify(thoughts);
-        }
-
-        if (Object.keys(metadata).length > 0) {
-            cleanPoem.metadata = metadata;
-        }
-
-        onSave(cleanPoem);
+        const savedPoem = buildPoemForSave(
+            poem,
+            title,
+            content,
+            poemTags,
+            category,
+            chapter,
+            createdOn,
+            lastUpdatedOn,
+            urls,
+            thoughts,
+        );
+        onSave(savedPoem);
         onClose();
     }, [poem, title, content, poemTags, category, chapter, createdOn, lastUpdatedOn, urls, thoughts, onSave, onClose]);
 
-    if (!poem) return null;
+    if (!poem) {
+        return null;
+    }
 
     const viewingThoughts = thoughts.filter((t) => viewingThoughtIds.includes(t.id));
-    const isViewing = viewingThoughts.length > 0 && !editingThought;
-    const isEditing = !!editingThought;
 
     return (
         <>
@@ -292,46 +225,19 @@ export const PoemEditModal = memo(function PoemEditModal({
                 </DialogContent>
             </Dialog>
 
-            <Drawer open={isDrawerOpen} onOpenChange={setIsDrawerOpen}>
-                <DrawerContent>
-                    <DrawerHeader>
-                        <DrawerTitle>
-                            {isEditing
-                                ? 'Edit Thought'
-                                : isViewing
-                                  ? `Viewing ${viewingThoughts.length} Thought${viewingThoughts.length > 1 ? 's' : ''}`
-                                  : 'Add Thought'}
-                        </DrawerTitle>
-                        <DrawerDescription>
-                            {selectedRange && <span className="font-mono text-sm">"{selectedRange.text}"</span>}
-                        </DrawerDescription>
-                    </DrawerHeader>
-                    <div className="px-4 pb-4">
-                        {isViewing ? (
-                            <MultipleThoughtsDisplay
-                                thoughts={viewingThoughts}
-                                onEdit={handleEditThought}
-                                onDelete={handleDeleteThought}
-                                onAddAnother={handleAddAnotherThought}
-                            />
-                        ) : (
-                            <ThoughtEditor
-                                value={currentThought}
-                                onChange={setCurrentThought}
-                                onSave={handleSaveThought}
-                                onCancel={() => setIsDrawerOpen(false)}
-                            />
-                        )}
-                    </div>
-                    {isViewing && (
-                        <DrawerFooter>
-                            <DrawerClose asChild>
-                                <Button variant="outline">Close</Button>
-                            </DrawerClose>
-                        </DrawerFooter>
-                    )}
-                </DrawerContent>
-            </Drawer>
+            <ThoughtDrawer
+                isOpen={isDrawerOpen}
+                onOpenChange={setIsDrawerOpen}
+                currentThought={currentThought}
+                onCurrentThoughtChange={setCurrentThought}
+                selectedRange={selectedRange}
+                editingThought={editingThought}
+                viewingThoughts={viewingThoughts}
+                onSave={handleSaveThought}
+                onEdit={handleEditThought}
+                onDelete={handleDeleteThought}
+                onAddAnother={handleAddAnotherThought}
+            />
         </>
     );
 });

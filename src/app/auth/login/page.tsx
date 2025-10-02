@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -38,6 +39,9 @@ export default function LoginPage() {
         <div className="flex min-h-screen items-center justify-center">
             <div className="w-full max-w-md space-y-8 p-8">
                 <div className="text-center">
+                    <div className="mx-auto mb-4 flex justify-center">
+                        <Image src="/icon.svg" alt="Quilliyo" width={64} height={64} />
+                    </div>
                     <h1 className="font-bold text-3xl">Quilliyo</h1>
                     <p className="mt-2 text-muted-foreground">Sign in to your account</p>
                 </div>
