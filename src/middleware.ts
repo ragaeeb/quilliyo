@@ -25,23 +25,14 @@ export async function middleware(request: NextRequest) {
 
     const {
         data: { user },
-        error,
     } = await supabase.auth.getUser();
 
-    // If there's an error fetching the user, allow the request through
-    // to avoid locking users out due to transient failures
-    if (error) {
-        console.error('Supabase auth error in middleware:', error);
-        return supabaseResponse;
-    }
-    // Protect routes (redirect to login if not authenticated)
     if (!user && !request.nextUrl.pathname.startsWith('/auth')) {
         const url = request.nextUrl.clone();
         url.pathname = '/auth/login';
         return NextResponse.redirect(url);
     }
 
-    // Redirect to home if already authenticated and trying to access auth pages
     if (user && request.nextUrl.pathname.startsWith('/auth')) {
         const url = request.nextUrl.clone();
         url.pathname = '/';

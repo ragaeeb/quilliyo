@@ -1,32 +1,18 @@
 import { type NextRequest, NextResponse } from 'next/server';
-import { DEFAULT_NOTEBOOK_ID, getNotebook, upsertNotebook } from '@/lib/models/notebook';
+import { withAuth } from '@/lib/middleware/authMiddleware';
+import { DEFAULT_NOTEBOOK_ID, getNotebook } from '@/lib/models/notebook';
+import {
+    deleteRevisionsForDeletedPoems,
+    findChangedPoems,
+    findDeletedPoemIds,
+    insertRevisions,
+    prepareNotebookData,
+    prepareRevisionInserts,
+    upsertNotebookData,
+} from '@/lib/notebookSaveUtils';
 import { decrypt, encrypt } from '@/lib/security';
-import { createClient } from '@/lib/supabase/server';
 
-const authenticateRequest = async () => {
-    const supabase = await createClient();
-    const {
-        data: { user },
-        error: authError,
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-        if (authError) {
-            console.error('Authentication error:', authError);
-        }
-        return { user: null, error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
-    }
-
-    return { user, error: null };
-};
-
-export async function GET(request: NextRequest) {
-    const { user, error } = await authenticateRequest();
-
-    if (error) {
-        return error;
-    }
-
+const getNotebookHandler = async (request: NextRequest, { user }: { user: any }) => {
     try {
         const encryptionKey = request.headers.get('x-encryption-key');
         const notebookId = request.nextUrl.searchParams.get('notebookId') || DEFAULT_NOTEBOOK_ID;
@@ -59,44 +45,55 @@ export async function GET(request: NextRequest) {
         console.error('Error fetching notebook:', error);
         return NextResponse.json({ error: 'Failed to fetch notebook' }, { status: 500 });
     }
-}
+};
 
-export async function POST(request: NextRequest) {
-    const { user, error } = await authenticateRequest();
-
-    if (error) {
-        return error;
-    }
-
+const saveNotebookHandler = async (request: NextRequest, { user, supabase }: { user: any; supabase: any }) => {
     try {
         const { data, encryptionKey, notebookId } = await request.json();
         const targetNotebookId = notebookId || DEFAULT_NOTEBOOK_ID;
 
-        let dataToSave: { encrypted: boolean; data?: string | null; poems?: Array<any> | null };
-
-        if (encryptionKey) {
-            // Encrypt: store in 'data' field, clear 'poems'
-            const jsonData = JSON.stringify(data, null, 2);
-            const encryptedData = encrypt(jsonData, encryptionKey);
-            dataToSave = {
-                encrypted: true,
-                data: encryptedData,
-                poems: null, // Clear unencrypted poems
-            };
-        } else {
-            // Unencrypted: store in 'poems' field, clear 'data'
-            dataToSave = {
-                encrypted: false,
-                poems: data.poems,
-                data: null, // Clear encrypted data
-            };
+        // Get existing notebook for comparison
+        const existingNotebook = await getNotebook(user.id, targetNotebookId);
+        let existingPoems = existingNotebook?.poems ?? [];
+        // If the notebook is encrypted, decrypt it before diffing
+        if (existingNotebook?.encrypted && existingNotebook.data) {
+            if (!encryptionKey) {
+                return NextResponse.json({ error: 'Encryption key required' }, { status: 401 });
+            }
+            try {
+                const decrypted = decrypt(existingNotebook.data, encryptionKey);
+                const parsed = JSON.parse(decrypted);
+                existingPoems = Array.isArray(parsed.poems) ? parsed.poems : [];
+            } catch (error) {
+                console.error('Failed to decrypt existing notebook:', error);
+                return NextResponse.json({ error: 'Invalid encryption key' }, { status: 401 });
+            }
         }
-
-        await upsertNotebook(user.id, dataToSave, targetNotebookId);
+        const newPoems = data.poems || [];
+        // Prepare notebook data (encrypted or unencrypted)
+        const dataToSave = prepareNotebookData(data, encryptionKey, encrypt);
+        // Find poems that have been deleted
+        const deletedPoemIds = findDeletedPoemIds(existingPoems, newPoems);
+        // Find poems with changed content
+        const changedPoems = findChangedPoems(newPoems, existingPoems);
+        // Prepare revision inserts
+        const revisionInserts = prepareRevisionInserts(changedPoems, user.id, targetNotebookId);
+        // Execute all operations
+        await Promise.all([
+            // Delete revisions for removed poems
+            deleteRevisionsForDeletedPoems(supabase, user.id, targetNotebookId, deletedPoemIds),
+            // Insert new revisions
+            insertRevisions(supabase, revisionInserts),
+            // Save notebook
+            upsertNotebookData(supabase, user.id, targetNotebookId, dataToSave),
+        ]);
 
         return NextResponse.json({ success: true, timestamp: new Date().toISOString() });
     } catch (error) {
         console.error('Error saving notebook:', error);
-        return NextResponse.json({ success: false, error: String(error) }, { status: 500 });
+        return NextResponse.json({ error: String(error), success: false }, { status: 500 });
     }
-}
+};
+
+export const GET = withAuth(getNotebookHandler);
+export const POST = withAuth(saveNotebookHandler);

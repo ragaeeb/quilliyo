@@ -21,10 +21,19 @@ export function useNotebook() {
                 const data = await res.json();
 
                 if (data.error) {
-                    alert('Invalid encryption key');
+                    toast.error('Invalid encryption key');
                     setEncryptionKey(null);
                     setIsEncrypted(true); // DB content is encrypted
                     setShowEncryptionDialog(true); // re-prompt
+                    setNotebook({ poems: [] });
+                    setLastSaved(null);
+                    return;
+                }
+
+                // Check if the notebook is encrypted but we don't have the key
+                if (data.encrypted && !encryptionKey) {
+                    setIsEncrypted(true);
+                    setShowEncryptionDialog(true); // Show dialog to get key
                     setNotebook({ poems: [] });
                     setLastSaved(null);
                     return;
