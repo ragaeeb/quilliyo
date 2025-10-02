@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
 import { EncryptionDialog } from '@/components/EncryptionDialog';
-import { PoemCard } from '@/components/PoemCard';
+import PoemCard from '@/components/PoemCard';
 import { PoemEditModal } from '@/components/PoemEditModal';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Button } from '@/components/ui/button';
@@ -45,7 +45,9 @@ export default function Home() {
     const handleLogout = async () => {
         try {
             const { error } = await supabase.auth.signOut();
-            if (error) throw error;
+            if (error) {
+                throw error;
+            }
             router.push('/auth/login');
             router.refresh();
         } catch (err) {
@@ -56,10 +58,10 @@ export default function Home() {
 
     const createNewPoem = useCallback(() => {
         const newPoem: Poem = {
-            id: Date.now().toString(),
-            title: 'Untitled',
             content: '',
+            id: Date.now().toString(),
             lastUpdatedOn: new Date().toISOString(),
+            title: 'Untitled',
         };
         setSelectedPoem(newPoem);
         setIsModalOpen(true);

@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -11,9 +11,9 @@ interface PoemCardProps {
     onEdit: (poem: Poem) => void;
 }
 
-export const PoemCard = memo(function PoemCard({ poem, isSelected, onToggleSelect, onEdit }: PoemCardProps) {
+function PoemCard({ poem, isSelected, onToggleSelect, onEdit }: PoemCardProps) {
     return (
-        <Card className="cursor-pointer transition-shadow hover:shadow-lg">
+        <Card className="cursor-pointer transition-shadow hover:shadow-lg" onClick={() => onEdit(poem)}>
             <CardHeader>
                 <div className="flex items-start justify-between">
                     <Checkbox
@@ -21,12 +21,10 @@ export const PoemCard = memo(function PoemCard({ poem, isSelected, onToggleSelec
                         onCheckedChange={() => onToggleSelect(poem.id)}
                         onClick={(e) => e.stopPropagation()}
                     />
-                    <CardTitle className="ml-3 flex-1" onClick={() => onEdit(poem)}>
-                        {poem.title}
-                    </CardTitle>
+                    <CardTitle className="ml-3 flex-1">{poem.title}</CardTitle>
                 </div>
             </CardHeader>
-            <CardContent onClick={() => onEdit(poem)}>
+            <CardContent>
                 <p className="mb-2 line-clamp-3 text-gray-600 text-sm">{poem.content}</p>
                 <div className="flex flex-wrap gap-1">
                     {poem.category && <Badge variant="secondary">{poem.category}</Badge>}
@@ -39,4 +37,6 @@ export const PoemCard = memo(function PoemCard({ poem, isSelected, onToggleSelec
             </CardContent>
         </Card>
     );
-});
+}
+
+export default React.memo(PoemCard);
