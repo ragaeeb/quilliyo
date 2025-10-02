@@ -7,6 +7,7 @@
 [![Node.js CI](https://github.com/ragaeeb/quilliyo/actions/workflows/build.yml/badge.svg)](https://github.com/ragaeeb/quilliyo/actions/workflows/build.yml)
 ![Bun](https://img.shields.io/badge/Bun-%23000000.svg?style=for-the-badge&logo=bun&logoColor=white)
 ![GitHub License](https://img.shields.io/github/license/ragaeeb/quilliyo)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A secure, modern web application for managing poetry and creative writing with built-in encryption, tagging, and annotation features.
 
@@ -14,8 +15,8 @@ A secure, modern web application for managing poetry and creative writing with b
 
 ### 🔐 **Security & Privacy**
 - Client-side encryption/decryption of your poetry collection
-- MongoDB backend storage with encrypted data option
-- Clerk authentication for secure user access
+- Supabase (Postgres) backend storage with encrypted data option
+- Supabase Authentication for secure user access
 
 ### ✍️ **Poetry Management**
 - Create, edit, and organize poems in a digital notebook
@@ -40,8 +41,8 @@ A secure, modern web application for managing poetry and creative writing with b
 
 - **Frontend**: Next.js 15.5 with React 19
 - **Styling**: Tailwind CSS v4
-- **Authentication**: Clerk
-- **Database**: MongoDB
+- **Authentication**: Supabase Auth
+- **Database**: Supabase (PostgreSQL)
 - **UI Components**: Radix UI primitives with custom styling
 - **Development**: TypeScript, Biome (linting/formatting)
 
@@ -50,14 +51,13 @@ A secure, modern web application for managing poetry and creative writing with b
 ### Prerequisites
 
 - Node.js 18+ or Bun runtime
-- MongoDB database (local or cloud)
-- Clerk account for authentication
+- Supabase project (free tier available at https://supabase.com)
 
 ### Installation
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/quilliyo.git
+git clone https://github.com/ragaeeb/quilliyo.git
 cd quilliyo
 ```
 
@@ -71,12 +71,9 @@ bun install
 3. Set up environment variables:
 Create a `.env.local` file in the root directory:
 ```env
-# MongoDB
-MONGODB_URI=your_mongodb_connection_string
-
-# Clerk Authentication
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
-CLERK_SECRET_KEY=your_clerk_secret_key
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
 4. Run the development server:
@@ -95,6 +92,8 @@ quilliyo/
 ├── app/                    # Next.js app directory
 │   ├── api/               # API routes
 │   │   └── notebook/      # Notebook CRUD operations
+│   ├── auth/              # Authentication pages
+│   │   └── login/         # Login/signup page
 │   └── page.tsx           # Main application page
 ├── components/            # React components
 │   ├── ui/               # Reusable UI components
@@ -106,13 +105,24 @@ quilliyo/
 │   ├── useSearch.ts     # Search functionality
 │   └── useMetadata.ts   # Metadata extraction
 ├── lib/                  # Utility functions
-│   ├── mongodb.ts       # Database connection
+│   ├── supabase/        # Supabase client utilities
+│   │   ├── client.ts    # Browser client
+│   │   └── server.ts    # Server client with SSR
 │   ├── security.ts      # Encryption utilities
 │   └── models/          # Data models
+│       └── notebook.ts  # Notebook database operations
+├── middleware.ts         # Supabase SSR middleware
 └── types/               # TypeScript type definitions
 ```
 
 ## Usage
+
+### Authentication
+
+1. Navigate to `/auth/login`
+2. Sign up with email and password or sign in if you already have an account
+3. Check your email for confirmation (if signing up)
+4. You'll be redirected to the main application
 
 ### Creating a Poem
 
@@ -168,30 +178,36 @@ npm run format
 
 ### Database Schema
 
-The application uses a single MongoDB collection for notebooks:
+The application uses a Supabase (PostgreSQL) table for notebooks:
 
+```sql
+CREATE TABLE notebooks (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id TEXT NOT NULL,
+  notebook_id TEXT NOT NULL,
+  data TEXT,              -- Encrypted notebook data (when encrypted)
+  poems JSONB,            -- Unencrypted poems array (when not encrypted)
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(user_id, notebook_id)
+);
+```
+
+**Poems structure (when unencrypted):**
 ```typescript
 {
-  userId: string;           // Clerk user ID
-  notebookId: string;      // Notebook identifier
-  encrypted?: boolean;     // Encryption status
-  data?: string;          // Encrypted notebook data
-  poems?: Array<{         // Unencrypted poems array
-    id: string;
-    title: string;
-    content: string;
-    tags?: string[];
-    category?: string;
-    chapter?: string;
-    createdOn?: string;
-    lastUpdatedOn?: string;
-    metadata?: {
-      urls?: string;
-      thoughts?: string;  // JSON stringified thoughts
-    };
-  }>;
-  createdAt: Date;
-  updatedAt: Date;
+  id: string;
+  title: string;
+  content: string;
+  tags?: string[];
+  category?: string;
+  chapter?: string;
+  createdOn?: string;
+  lastUpdatedOn?: string;
+  metadata?: {
+    urls?: string;
+    thoughts?: string;  // JSON stringified thoughts
+  };
 }
 ```
 
@@ -210,7 +226,9 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-This project is private. All rights reserved.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+Copyright (c) 2025 Ragaeeb Haq
 
 ## Acknowledgments
 

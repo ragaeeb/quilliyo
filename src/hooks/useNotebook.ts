@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import type { Notebook, Poem } from '@/types/notebook';
 
 export function useNotebook() {
@@ -22,6 +23,8 @@ export function useNotebook() {
                 if (data.error) {
                     alert('Invalid encryption key');
                     setEncryptionKey(null);
+                    setIsEncrypted(true); // DB content is encrypted
+                    setShowEncryptionDialog(true); // re‑prompt
                     return;
                 }
 
@@ -29,16 +32,15 @@ export function useNotebook() {
                     // Notebook is encrypted in DB but we don't have key yet
                     setIsEncrypted(true);
                     setShowEncryptionDialog(true);
+                    setNotebook({ poems: [] }); // clear stale content
                     return;
                 }
 
                 // Successfully loaded (either unencrypted, or decrypted with key)
                 setNotebook(data);
-                // Keep isEncrypted true if we used a key to decrypt (means it's still encrypted in DB)
-                // Only set to false if we truly loaded unencrypted data
-                if (!encryptionKey) {
-                    setIsEncrypted(false);
-                }
+                setShowEncryptionDialog(false);
+                // Reflect DB state if provided; fallback to false
+                setIsEncrypted(Boolean((data as any)?.encrypted));
             } catch (error) {
                 console.error('Failed to load notebook:', error);
             }
@@ -50,15 +52,17 @@ export function useNotebook() {
     const saveNotebook = useCallback(async () => {
         try {
             const res = await fetch('/api/notebook', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ data: notebook, encryptionKey }),
+                headers: { 'Content-Type': 'application/json' },
+                method: 'POST',
             });
             const result = await res.json();
             if (result.success) {
                 setLastSaved(result.timestamp);
-                // After saving, update isEncrypted based on whether we saved with a key
-                setIsEncrypted(!!encryptionKey);
+                // After saving, prefer server truth; fallback to local key usage
+                setIsEncrypted(result.encrypted ?? !!encryptionKey);
+
+                toast.success('Saved!');
             }
         } catch (error) {
             console.error('Failed to save:', error);
@@ -84,7 +88,7 @@ export function useNotebook() {
 
     const handleEncryptionKeySet = useCallback((key: string) => {
         setEncryptionKey(key);
-        setIsEncrypted(true);
+        setShowEncryptionDialog(false);
     }, []);
 
     const toggleEncryption = useCallback(async () => {
@@ -92,9 +96,9 @@ export function useNotebook() {
             // Remove encryption: save as unencrypted immediately
             try {
                 const res = await fetch('/api/notebook', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ data: notebook, encryptionKey: null }),
+                    headers: { 'Content-Type': 'application/json' },
+                    method: 'POST',
                 });
                 const result = await res.json();
                 if (result.success) {
@@ -112,16 +116,16 @@ export function useNotebook() {
     }, [encryptionKey, notebook]);
 
     return {
-        notebook,
-        encryptionKey,
-        isEncrypted,
-        showEncryptionDialog,
-        setShowEncryptionDialog,
-        lastSaved,
-        saveNotebook,
-        handleSavePoem,
         deletePoems,
+        encryptionKey,
         handleEncryptionKeySet,
+        handleSavePoem,
+        isEncrypted,
+        lastSaved,
+        notebook,
+        saveNotebook,
+        setShowEncryptionDialog,
+        showEncryptionDialog,
         toggleEncryption,
     };
 }

@@ -3,14 +3,28 @@ import { DEFAULT_NOTEBOOK_ID, getNotebook, upsertNotebook } from '@/lib/models/n
 import { decrypt, encrypt } from '@/lib/security';
 import { createClient } from '@/lib/supabase/server';
 
-export async function GET(request: NextRequest) {
+const authenticateRequest = async () => {
     const supabase = await createClient();
     const {
         data: { user },
+        error: authError,
     } = await supabase.auth.getUser();
 
     if (!user) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        if (authError) {
+            console.error('Authentication error:', authError);
+        }
+        return { user: null, error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
+    }
+
+    return { user, error: null };
+};
+
+export async function GET(request: NextRequest) {
+    const { user, error } = await authenticateRequest();
+
+    if (error) {
+        return error;
     }
 
     try {
@@ -48,13 +62,10 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-    const supabase = await createClient();
-    const {
-        data: { user },
-    } = await supabase.auth.getUser();
+    const { user, error } = await authenticateRequest();
 
-    if (!user) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (error) {
+        return error;
     }
 
     try {

@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import { Lock, LogOut, Plus, Save, Search, Trash2, Unlock } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useState } from 'react';
+import { toast } from 'sonner';
 import { EncryptionDialog } from '@/components/EncryptionDialog';
 import { PoemCard } from '@/components/PoemCard';
 import { PoemEditModal } from '@/components/PoemEditModal';
@@ -42,9 +43,15 @@ export default function Home() {
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
     const handleLogout = async () => {
-        await supabase.auth.signOut();
-        router.push('/auth/login');
-        router.refresh();
+        try {
+            const { error } = await supabase.auth.signOut();
+            if (error) throw error;
+            router.push('/auth/login');
+            router.refresh();
+        } catch (err) {
+            console.error('Failed to sign out:', err);
+            toast.error('Could not sign out.');
+        }
     };
 
     const createNewPoem = useCallback(() => {

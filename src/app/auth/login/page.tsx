@@ -12,6 +12,7 @@ export default function LoginPage() {
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [successMessage, setSuccessMessage] = useState<string | null>(null);
     const [isSignUp, setIsSignUp] = useState(false);
     const router = useRouter();
     const supabase = createClient();
@@ -20,20 +21,20 @@ export default function LoginPage() {
         e.preventDefault();
         setLoading(true);
         setError(null);
-
+        setSuccessMessage(null);
         try {
             if (isSignUp) {
                 const { error } = await supabase.auth.signUp({ email, password });
                 if (error) throw error;
-                setError('Check your email to confirm your account!');
+                setSuccessMessage('Check your email to confirm your account!');
             } else {
                 const { error } = await supabase.auth.signInWithPassword({ email, password });
                 if (error) throw error;
                 router.push('/');
                 router.refresh();
             }
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'An unexpected error occurred');
         } finally {
             setLoading(false);
         }
@@ -76,22 +77,15 @@ export default function LoginPage() {
                             />
                         </div>
                     </div>
-
-                    {error && (
-                        <div
-                            className={`text-sm ${error.includes('Check your email') ? 'text-green-600' : 'text-red-600'}`}
-                        >
-                            {error}
-                        </div>
-                    )}
-
+                    {successMessage && <div className="text-green-600 text-sm">{successMessage}</div>}
+                    {error && <div className="text-red-600 text-sm">{error}</div>}
                     <Button type="submit" className="w-full" disabled={loading}>
                         {loading ? 'Loading...' : isSignUp ? 'Sign Up' : 'Sign In'}
                     </Button>
 
                     <div className="text-center text-sm">
-                        <button
-                            type="button"
+                        <Button
+                            aria-label={isSignUp ? 'Switch to sign in' : 'Switch to sign up'}
                             onClick={() => {
                                 setIsSignUp(!isSignUp);
                                 setError(null);
@@ -99,7 +93,7 @@ export default function LoginPage() {
                             className="text-primary hover:underline"
                         >
                             {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
-                        </button>
+                        </Button>
                     </div>
                 </form>
             </div>

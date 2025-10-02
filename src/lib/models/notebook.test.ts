@@ -15,11 +15,11 @@ const mockUpsert = mock(() => Promise.resolve({ error: null }));
 const mockOrder = mock(() => Promise.resolve({ data: [], error: null }));
 const mockDelete = mock(() => mockDeleteQuery);
 
-const mockQuery = { select: mockSelect, eq: mockEq, single: mockSingle, order: mockOrder };
+const mockQuery = { eq: mockEq, maybeSingle: mockSingle, order: mockOrder, select: mockSelect };
 
 const mockDeleteQuery = { eq: mockEq };
 
-const mockFrom = mock(() => ({ select: mockSelect, upsert: mockUpsert, delete: mockDelete }));
+const mockFrom = mock(() => ({ delete: mockDelete, select: mockSelect, upsert: mockUpsert }));
 
 const mockSupabase = { from: mockFrom };
 
@@ -54,12 +54,12 @@ describe('notebook.ts - Supabase Wrapper', () => {
 
         it('should fetch notebook with default notebookId', async () => {
             const mockNotebook: NotebookDocument = {
+                created_at: new Date().toISOString(),
                 id: 'doc1',
-                user_id: userId,
                 notebook_id: DEFAULT_NOTEBOOK_ID,
                 poems: [],
                 updated_at: new Date().toISOString(),
-                created_at: new Date().toISOString(),
+                user_id: userId,
             };
             mockSingle.mockResolvedValue({ data: mockNotebook, error: null });
 
@@ -75,12 +75,12 @@ describe('notebook.ts - Supabase Wrapper', () => {
 
         it('should fetch notebook with custom notebookId', async () => {
             const mockNotebook: NotebookDocument = {
+                created_at: new Date().toISOString(),
                 id: 'doc2',
-                user_id: userId,
                 notebook_id: customNotebookId,
                 poems: [],
                 updated_at: new Date().toISOString(),
-                created_at: new Date().toISOString(),
+                user_id: userId,
             };
             mockSingle.mockResolvedValue({ data: mockNotebook, error: null });
 
@@ -92,7 +92,7 @@ describe('notebook.ts - Supabase Wrapper', () => {
         });
 
         it('should return null when notebook does not exist (PGRST116 error)', async () => {
-            mockSingle.mockResolvedValue({ data: null, error: { code: 'PGRST116', message: 'No rows returned' } });
+            mockSingle.mockResolvedValue({ data: null, error: null });
 
             const result = await getNotebook(userId);
 
@@ -108,14 +108,14 @@ describe('notebook.ts - Supabase Wrapper', () => {
 
         it('should fetch encrypted notebook', async () => {
             const mockNotebook: NotebookDocument = {
-                id: 'doc3',
-                user_id: userId,
-                notebook_id: DEFAULT_NOTEBOOK_ID,
-                encrypted: true,
+                created_at: new Date().toISOString(),
                 data: 'encrypted-data-string',
+                encrypted: true,
+                id: 'doc3',
+                notebook_id: DEFAULT_NOTEBOOK_ID,
                 poems: null,
                 updated_at: new Date().toISOString(),
-                created_at: new Date().toISOString(),
+                user_id: userId,
             };
             mockSingle.mockResolvedValue({ data: mockNotebook, error: null });
 
@@ -130,22 +130,22 @@ describe('notebook.ts - Supabase Wrapper', () => {
         it('should fetch notebook with poems', async () => {
             const mockPoems = [
                 {
-                    id: 'poem1',
-                    title: 'Test Poem',
-                    content: 'Poem content',
-                    lastUpdatedOn: new Date().toISOString(),
-                    tags: ['tag1', 'tag2'],
                     category: 'nature',
                     chapter: 'Chapter 1',
+                    content: 'Poem content',
+                    id: 'poem1',
+                    lastUpdatedOn: new Date().toISOString(),
+                    tags: ['tag1', 'tag2'],
+                    title: 'Test Poem',
                 },
             ];
             const mockNotebook: NotebookDocument = {
+                created_at: new Date().toISOString(),
                 id: 'doc4',
-                user_id: userId,
                 notebook_id: DEFAULT_NOTEBOOK_ID,
                 poems: mockPoems,
                 updated_at: new Date().toISOString(),
-                created_at: new Date().toISOString(),
+                user_id: userId,
             };
             mockSingle.mockResolvedValue({ data: mockNotebook, error: null });
 
@@ -162,80 +162,80 @@ describe('notebook.ts - Supabase Wrapper', () => {
 
         it('should upsert notebook with default notebookId', async () => {
             const data = {
-                poems: [{ id: 'poem1', title: 'Test', content: 'Content', lastUpdatedOn: new Date().toISOString() }],
+                poems: [{ content: 'Content', id: 'poem1', lastUpdatedOn: new Date().toISOString(), title: 'Test' }],
             };
 
             await upsertNotebook(userId, data);
 
             expect(mockFrom).toHaveBeenCalledWith('notebooks');
             expect(mockUpsert).toHaveBeenCalledWith(
-                { user_id: userId, notebook_id: DEFAULT_NOTEBOOK_ID, ...data },
+                { notebook_id: DEFAULT_NOTEBOOK_ID, user_id: userId, ...data },
                 { onConflict: 'user_id,notebook_id' },
             );
         });
 
         it('should upsert notebook with custom notebookId', async () => {
-            const data = { encrypted: true, data: 'encrypted-data' };
+            const data = { data: 'encrypted-data', encrypted: true };
 
             await upsertNotebook(userId, data, customNotebookId);
 
             expect(mockUpsert).toHaveBeenCalledWith(
-                { user_id: userId, notebook_id: customNotebookId, ...data },
+                { notebook_id: customNotebookId, user_id: userId, ...data },
                 { onConflict: 'user_id,notebook_id' },
             );
         });
 
         it('should handle encrypted data', async () => {
-            const data = { encrypted: true, data: 'encrypted-string', poems: null };
+            const data = { data: 'encrypted-string', encrypted: true, poems: null };
 
             await upsertNotebook(userId, data);
 
             expect(mockUpsert).toHaveBeenCalledWith(
-                { user_id: userId, notebook_id: DEFAULT_NOTEBOOK_ID, ...data },
+                { notebook_id: DEFAULT_NOTEBOOK_ID, user_id: userId, ...data },
                 { onConflict: 'user_id,notebook_id' },
             );
         });
 
         it('should handle unencrypted data', async () => {
-            const data = { encrypted: false, poems: [], data: null };
+            const data = { data: null, encrypted: false, poems: [] };
 
             await upsertNotebook(userId, data);
 
             expect(mockUpsert).toHaveBeenCalledWith(
-                { user_id: userId, notebook_id: DEFAULT_NOTEBOOK_ID, ...data },
+                { notebook_id: DEFAULT_NOTEBOOK_ID, user_id: userId, ...data },
                 { onConflict: 'user_id,notebook_id' },
             );
         });
 
         it('should throw error on upsert failure', async () => {
-            const dbError = { message: 'Upsert failed', code: 'PGRST500' };
+            const dbError = { code: 'PGRST500', message: 'Upsert failed' };
             mockUpsert.mockResolvedValue({ error: dbError });
 
-            await expect(upsertNotebook(userId, {})).rejects.toEqual(dbError);
+            await expect(upsertNotebook(userId, {})).rejects.toMatchObject(dbError);
         });
 
         it('should handle empty data object', async () => {
             await upsertNotebook(userId, {});
 
             expect(mockUpsert).toHaveBeenCalledWith(
-                { user_id: userId, notebook_id: DEFAULT_NOTEBOOK_ID },
+                { notebook_id: DEFAULT_NOTEBOOK_ID, user_id: userId },
                 { onConflict: 'user_id,notebook_id' },
             );
         });
 
         it('should preserve all fields in partial data', async () => {
             const data = {
-                encrypted: false,
                 data: null,
+                encrypted: false,
                 poems: [
                     {
-                        id: 'p1',
-                        title: 'Title',
-                        content: 'Content',
-                        lastUpdatedOn: '2024-01-01',
-                        tags: ['tag1'],
                         category: 'cat1',
                         chapter: 'ch1',
+                        content: 'Content',
+                        id: 'p1',
+                        lastUpdatedOn: '2024-01-01',
+                        tags: ['tag1'],
+                        title: 'Title',
                     },
                 ],
             };
@@ -243,7 +243,7 @@ describe('notebook.ts - Supabase Wrapper', () => {
             await upsertNotebook(userId, data);
 
             expect(mockUpsert).toHaveBeenCalledWith(
-                { user_id: userId, notebook_id: DEFAULT_NOTEBOOK_ID, ...data },
+                { notebook_id: DEFAULT_NOTEBOOK_ID, user_id: userId, ...data },
                 { onConflict: 'user_id,notebook_id' },
             );
         });
@@ -255,20 +255,20 @@ describe('notebook.ts - Supabase Wrapper', () => {
         it('should list all notebooks for a user', async () => {
             const mockNotebooks: NotebookDocument[] = [
                 {
+                    created_at: new Date('2024-01-02').toISOString(),
                     id: 'doc1',
-                    user_id: userId,
                     notebook_id: 'notebook1',
                     poems: [],
                     updated_at: new Date('2024-01-02').toISOString(),
-                    created_at: new Date('2024-01-02').toISOString(),
+                    user_id: userId,
                 },
                 {
+                    created_at: new Date('2024-01-01').toISOString(),
                     id: 'doc2',
-                    user_id: userId,
                     notebook_id: 'notebook2',
                     poems: [],
                     updated_at: new Date('2024-01-01').toISOString(),
-                    created_at: new Date('2024-01-01').toISOString(),
+                    user_id: userId,
                 },
             ];
             mockOrder.mockResolvedValue({ data: mockNotebooks, error: null });
@@ -300,7 +300,7 @@ describe('notebook.ts - Supabase Wrapper', () => {
         });
 
         it('should throw error on query failure', async () => {
-            const dbError = { message: 'Query failed', code: 'PGRST500' };
+            const dbError = { code: 'PGRST500', message: 'Query failed' };
             mockOrder.mockResolvedValue({ data: null, error: dbError });
 
             await expect(listNotebooks(userId)).rejects.toEqual(dbError);
@@ -309,22 +309,22 @@ describe('notebook.ts - Supabase Wrapper', () => {
         it('should handle multiple notebooks with different data', async () => {
             const mockNotebooks: NotebookDocument[] = [
                 {
-                    id: 'doc1',
-                    user_id: userId,
-                    notebook_id: DEFAULT_NOTEBOOK_ID,
-                    poems: [{ id: '1', title: 'Poem', content: 'Content', lastUpdatedOn: '2024-01-01' }],
-                    updated_at: new Date().toISOString(),
                     created_at: new Date().toISOString(),
+                    id: 'doc1',
+                    notebook_id: DEFAULT_NOTEBOOK_ID,
+                    poems: [{ content: 'Content', id: '1', lastUpdatedOn: '2024-01-01', title: 'Poem' }],
+                    updated_at: new Date().toISOString(),
+                    user_id: userId,
                 },
                 {
-                    id: 'doc2',
-                    user_id: userId,
-                    notebook_id: 'encrypted-notebook',
-                    encrypted: true,
+                    created_at: new Date().toISOString(),
                     data: 'encrypted',
+                    encrypted: true,
+                    id: 'doc2',
+                    notebook_id: 'encrypted-notebook',
                     poems: null,
                     updated_at: new Date().toISOString(),
-                    created_at: new Date().toISOString(),
+                    user_id: userId,
                 },
             ];
             mockOrder.mockResolvedValue({ data: mockNotebooks, error: null });
@@ -374,7 +374,7 @@ describe('notebook.ts - Supabase Wrapper', () => {
 
         it('should handle special characters in userId', async () => {
             const specialUserId = 'user@example.com';
-            mockSingle.mockResolvedValue({ data: null, error: { code: 'PGRST116' } });
+            mockSingle.mockResolvedValue({ data: null, error: null });
 
             await getNotebook(specialUserId);
 
@@ -383,7 +383,7 @@ describe('notebook.ts - Supabase Wrapper', () => {
 
         it('should handle special characters in notebookId', async () => {
             const specialNotebookId = 'notebook-with-special!@#$%^&*()';
-            mockSingle.mockResolvedValue({ data: null, error: { code: 'PGRST116' } });
+            mockSingle.mockResolvedValue({ data: null, error: null });
 
             await getNotebook(userId, specialNotebookId);
 
@@ -392,7 +392,7 @@ describe('notebook.ts - Supabase Wrapper', () => {
 
         it('should handle very long notebookId strings', async () => {
             const longNotebookId = 'a'.repeat(1000);
-            mockSingle.mockResolvedValue({ data: null, error: { code: 'PGRST116' } });
+            mockSingle.mockResolvedValue({ data: null, error: null });
 
             await getNotebook(userId, longNotebookId);
 

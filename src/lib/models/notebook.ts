@@ -32,17 +32,13 @@ export async function getNotebook(
         .select('*')
         .eq('user_id', userId)
         .eq('notebook_id', notebookId)
-        .single();
+        .maybeSingle();
 
     if (error) {
-        if (error.code === 'PGRST116') {
-            // No rows returned
-            return null;
-        }
         throw error;
     }
 
-    return data;
+    return data ?? null;
 }
 
 export async function upsertNotebook(
@@ -54,7 +50,7 @@ export async function upsertNotebook(
 
     const { error } = await supabase
         .from('notebooks')
-        .upsert({ user_id: userId, notebook_id: notebookId, ...data }, { onConflict: 'user_id,notebook_id' });
+        .upsert({ ...data, notebook_id: notebookId, user_id: userId }, { onConflict: 'user_id,notebook_id' });
 
     if (error) {
         throw error;
