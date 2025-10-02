@@ -24,16 +24,11 @@ export function useNotebook() {
                     alert('Invalid encryption key');
                     setEncryptionKey(null);
                     setIsEncrypted(true); // DB content is encrypted
-                    setShowEncryptionDialog(true); // re‑prompt
+                    setShowEncryptionDialog(true); // re-prompt
+                    setNotebook({ poems: [] });
+                    setLastSaved(null);
                     return;
                 }
-
-                if (data.encrypted) {
-                    // Notebook is encrypted in DB but we don't have key yet
-                    setIsEncrypted(true);
-                    setShowEncryptionDialog(true);
-                    setNotebook({ poems: [] }); // clear stale content
-                    return;
                 }
 
                 // Successfully loaded (either unencrypted, or decrypted with key)
