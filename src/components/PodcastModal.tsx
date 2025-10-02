@@ -20,7 +20,7 @@ type PodcastModalProps = { isOpen: boolean; onClose: () => void; poems: Poem[] }
 
 export const PodcastModal = ({ isOpen, onClose, poems }: PodcastModalProps) => {
     const [style, setStyle] = useState<PodcastStyle>('expert-analysis');
-    const [platform, setPlatform] = useState<TTSPlatform>('google-gemini');
+    const [platform, setPlatform] = useState<TTSPlatform>('azure-speech');
     const [transcript, setTranscript] = useState('');
     const [isGeneratingTranscript, setIsGeneratingTranscript] = useState(false);
     const [isGeneratingPodcast, setIsGeneratingPodcast] = useState(false);
@@ -72,22 +72,31 @@ export const PodcastModal = ({ isOpen, onClose, poems }: PodcastModalProps) => {
             });
 
             if (!response.ok) {
-                throw new Error('Failed to generate podcast');
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to generate podcast');
             }
 
             const data = await response.json();
 
+            if (data.error) {
+                toast.error(data.error);
+                return;
+            }
+
             if (data.audioUrl) {
-                window.open(data.audioUrl, '_blank');
+                const audio = new Audio(data.audioUrl);
+                audio.play();
+                toast.success('Podcast is now playing');
             } else if (data.audioBase64) {
                 const audio = new Audio(`data:audio/mp3;base64,${data.audioBase64}`);
                 audio.play();
+                toast.success('Podcast is now playing');
+            } else {
+                toast.error('No audio data received');
             }
-
-            toast.success('Podcast generated successfully');
         } catch (error) {
             console.error('Error generating podcast:', error);
-            toast.error('Failed to generate podcast');
+            toast.error(error instanceof Error ? error.message : 'Failed to generate podcast');
         } finally {
             setIsGeneratingPodcast(false);
         }

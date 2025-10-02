@@ -9,6 +9,7 @@ const generateExpertAnalysisPrompt = (poems: TranscriptGenerationRequest['poems'
     return `You are an expert poetry analyst hosting a podcast. Create a natural, engaging 10-minute podcast transcript analyzing the following poem(s). 
 
 The transcript should:
+- Not mention any kind of music or sound effects (no intro music or outro).
 - Start with a warm introduction
 - Provide deep analysis of metaphors, themes, and writing style
 - Point out interesting literary devices

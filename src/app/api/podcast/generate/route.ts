@@ -1,3 +1,5 @@
+import { writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { type NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/middleware/authMiddleware';
 import type { PodcastGenerationRequest } from '@/types/podcast';
@@ -49,7 +51,12 @@ const generateWithAzureSpeech = async (transcript: string) => {
             const combinedBuffer = combineAudioBuffers(audioBuffers);
             const base64Audio = Buffer.from(combinedBuffer).toString('base64');
 
-            return NextResponse.json({ audioBase64: base64Audio });
+            const timestamp = Date.now();
+            const filePath = join(process.cwd(), 'public', `podcast-${timestamp}.mp3`);
+            await writeFile(filePath, Buffer.from(combinedBuffer));
+            console.log(`Saved podcast to: ${filePath}`);
+
+            return NextResponse.json({ audioBase64: base64Audio, audioUrl: `/podcast-${timestamp}.mp3` });
         } else {
             const ssml = createSSML(transcript, 'en-US-AriaNeural');
 
@@ -70,7 +77,12 @@ const generateWithAzureSpeech = async (transcript: string) => {
             const audioBuffer = await response.arrayBuffer();
             const base64Audio = Buffer.from(audioBuffer).toString('base64');
 
-            return NextResponse.json({ audioBase64: base64Audio });
+            const timestamp = Date.now();
+            const filePath = join(process.cwd(), 'public', `podcast-${timestamp}.mp3`);
+            await writeFile(filePath, Buffer.from(audioBuffer));
+            console.log(`Saved podcast to: ${filePath}`);
+
+            return NextResponse.json({ audioBase64: base64Audio, audioUrl: `/podcast-${timestamp}.mp3` });
         }
     } catch (error) {
         console.error('Azure TTS error:', error);
@@ -80,7 +92,7 @@ const generateWithAzureSpeech = async (transcript: string) => {
 
 const parseDebateTranscript = (transcript: string) => {
     const lines = transcript.split('\n');
-    const segments = [];
+    const segments: Array<{ speaker: string; text: string }> = [];
     let currentSpeaker = '';
     let currentText = '';
 
@@ -116,11 +128,11 @@ const createSSML = (text: string, voice: string) => {
     const processedText = text
         .replace(/\.\.\./g, '<break time="500ms"/>')
         .replace(/--/g, '<break time="300ms"/>')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&apos;')
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&apos;');
 
     return `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="en-US">
         <voice name="${voice}">
@@ -150,9 +162,8 @@ const handler = async (request: NextRequest) => {
 
         if (platform === 'google-gemini') {
             return generateWithGeminiTTS(transcript);
-        } else {
-            return generateWithAzureSpeech(transcript);
         }
+        return generateWithAzureSpeech(transcript);
     } catch (error) {
         console.error('Error generating podcast:', error);
         return NextResponse.json({ error: 'Failed to generate podcast' }, { status: 500 });
