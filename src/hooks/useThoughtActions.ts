@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { toast } from 'sonner';
 import type { Thought } from '@/types/notebook';
 
 export function useThoughtActions(thoughts: Thought[], setThoughts: (updater: (prev: Thought[]) => Thought[]) => void) {
@@ -9,7 +10,7 @@ export function useThoughtActions(thoughts: Thought[], setThoughts: (updater: (p
             selectedRange: { start: number; end: number; text: string } | null,
         ) => {
             if (!currentThought.trim()) {
-                alert('Please write a thought');
+                toast.error('Please write a thought');
                 return false;
             }
 

@@ -21,7 +21,7 @@ export function useNotebook() {
                 const data = await res.json();
 
                 if (data.error) {
-                    alert('Invalid encryption key');
+                    toast.error('Invalid encryption key');
                     setEncryptionKey(null);
                     setIsEncrypted(true); // DB content is encrypted
                     setShowEncryptionDialog(true); // re-prompt

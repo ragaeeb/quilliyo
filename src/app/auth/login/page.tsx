@@ -50,6 +50,7 @@ export default function LoginPage() {
                     <div className="space-y-4">
                         <Input
                             id="email"
+                            aria-label="Email address"
                             type="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
@@ -60,6 +61,7 @@ export default function LoginPage() {
                         <Input
                             id="password"
                             type="password"
+                            aria-label="Password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             required

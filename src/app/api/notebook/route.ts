@@ -54,21 +54,30 @@ const saveNotebookHandler = async (request: NextRequest, { user, supabase }: { u
 
         // Get existing notebook for comparison
         const existingNotebook = await getNotebook(user.id, targetNotebookId);
-        const existingPoems = existingNotebook?.poems || [];
+        let existingPoems = existingNotebook?.poems ?? [];
+        // If the notebook is encrypted, decrypt it before diffing
+        if (existingNotebook?.encrypted && existingNotebook.data) {
+            if (!encryptionKey) {
+                return NextResponse.json({ error: 'Encryption key required' }, { status: 401 });
+            }
+            try {
+                const decrypted = decrypt(existingNotebook.data, encryptionKey);
+                const parsed = JSON.parse(decrypted);
+                existingPoems = Array.isArray(parsed.poems) ? parsed.poems : [];
+            } catch (error) {
+                console.error('Failed to decrypt existing notebook:', error);
+                return NextResponse.json({ error: 'Invalid encryption key' }, { status: 401 });
+            }
+        }
         const newPoems = data.poems || [];
-
         // Prepare notebook data (encrypted or unencrypted)
         const dataToSave = prepareNotebookData(data, encryptionKey, encrypt);
-
         // Find poems that have been deleted
         const deletedPoemIds = findDeletedPoemIds(existingPoems, newPoems);
-
         // Find poems with changed content
         const changedPoems = findChangedPoems(newPoems, existingPoems);
-
         // Prepare revision inserts
         const revisionInserts = prepareRevisionInserts(changedPoems, user.id, targetNotebookId);
-
         // Execute all operations
         await Promise.all([
             // Delete revisions for removed poems

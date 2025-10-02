@@ -58,7 +58,15 @@ export default function ThoughtDrawer({
                 <DrawerHeader>
                     <DrawerTitle>{getTitle()}</DrawerTitle>
                     <DrawerDescription>
-                        {selectedRange && <span className="font-mono text-sm">"{selectedRange.text}"</span>}
+                        {selectedRange && (
+                            <span className="font-mono text-sm">
+                                "
+                                {selectedRange.text.length > 100
+                                    ? `${selectedRange.text.slice(0, 100)}...`
+                                    : selectedRange.text}
+                                "
+                            </span>
+                        )}
                     </DrawerDescription>
                 </DrawerHeader>
                 <div className="px-4 pb-4">

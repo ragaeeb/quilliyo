@@ -90,7 +90,7 @@ export const PoemEditModal = memo(function PoemEditModal({
     const handleAddThought = useCallback(() => {
         const range = getSelectedRange();
         if (!range) {
-            alert('Please select some text first');
+            toast.error('Please select some text first');
             return;
         }
         openForNewThought(range);
