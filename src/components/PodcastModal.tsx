@@ -85,12 +85,41 @@ export const PodcastModal = ({ isOpen, onClose, poems }: PodcastModalProps) => {
 
             if (data.audioUrl) {
                 const audio = new Audio(data.audioUrl);
-                audio.play();
-                toast.success('Podcast is now playing');
+                audio.addEventListener('canplaythrough', () => {
+                    console.log('Audio ready to play');
+                });
+                audio.addEventListener('error', (e) => {
+                    console.error('Audio playback error:', e);
+                    toast.error('Failed to play audio');
+                });
+                audio.addEventListener('play', () => {
+                    console.log('Audio started playing');
+                    toast.success('Podcast is now playing');
+                });
+
+                try {
+                    await audio.play();
+                } catch (playError) {
+                    console.error('Play failed:', playError);
+                    toast.error(`Play failed: ${playError instanceof Error ? playError.message : 'Unknown error'}`);
+                }
             } else if (data.audioBase64) {
                 const audio = new Audio(`data:audio/mp3;base64,${data.audioBase64}`);
-                audio.play();
-                toast.success('Podcast is now playing');
+                audio.addEventListener('error', (e) => {
+                    console.error('Audio playback error:', e);
+                    toast.error('Failed to play audio');
+                });
+                audio.addEventListener('play', () => {
+                    console.log('Audio started playing');
+                    toast.success('Podcast is now playing');
+                });
+
+                try {
+                    await audio.play();
+                } catch (playError) {
+                    console.error('Play failed:', playError);
+                    toast.error(`Play failed: ${playError instanceof Error ? playError.message : 'Unknown error'}`);
+                }
             } else {
                 toast.error('No audio data received');
             }
