@@ -1,4 +1,4 @@
-import { MessageSquare } from 'lucide-react';
+import { HistoryIcon, MessageSquare } from 'lucide-react';
 import { memo, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -174,6 +174,16 @@ export const PoemEditModal = memo(function PoemEditModal({
                         <div className="flex items-center justify-between">
                             <DialogTitle>Edit Poem</DialogTitle>
                             <div className="flex items-center gap-3">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                        setShowRevisions(true);
+                                    }}
+                                >
+                                    <HistoryIcon />
+                                </Button>
                                 <Button type="button" variant="outline" size="sm" onClick={handleAddThought}>
                                     <MessageSquare className="mr-2 h-4 w-4" />
                                     Add Thought

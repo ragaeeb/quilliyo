@@ -118,14 +118,14 @@ export async function POST(request: NextRequest) {
         }
 
         // Execute notebook upsert and revision inserts in parallel
-        const operations: Promise<any>[] = [
-            supabase
-                .from('notebooks')
-                .upsert(
-                    { ...dataToSave, notebook_id: targetNotebookId, user_id: user.id },
-                    { onConflict: 'user_id,notebook_id' },
-                ),
-        ];
+        const notebookOperation = supabase
+            .from('notebooks')
+            .upsert(
+                { ...dataToSave, notebook_id: targetNotebookId, user_id: user.id },
+                { onConflict: 'user_id,notebook_id' },
+            );
+
+        const operations = [notebookOperation];
 
         if (revisionInserts.length > 0) {
             operations.push(supabase.from('poem_content_revisions').insert(revisionInserts));
