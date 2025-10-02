@@ -1,4 +1,4 @@
-export interface Poem {
+export type Poem = {
     id: string;
     title: string;
     content: string;
@@ -8,18 +8,15 @@ export interface Poem {
     createdOn?: string;
     lastUpdatedOn?: string;
     metadata?: Record<string, string>;
-}
+};
 
-export interface Notebook {
-    poems: Poem[];
-    encrypted?: boolean;
-}
+export type Notebook = { poems: Poem[]; encrypted?: boolean };
 
-export interface Thought {
+export type Thought = {
     id: string;
     text: string;
     selectedText: string;
     startIndex: number;
     endIndex: number;
     createdAt: string;
-}
+};

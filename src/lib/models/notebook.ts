@@ -1,25 +1,18 @@
 import { createClient } from '@/lib/supabase/server';
+import type { Poem } from '@/types/notebook';
 
 export const DEFAULT_NOTEBOOK_ID = 'default';
 
-export interface NotebookDocument {
+export type NotebookDocument = {
     id: string;
     user_id: string;
     notebook_id: string;
     encrypted?: boolean;
     data?: string | null; // encrypted data - can be null when unencrypted
-    poems?: Array<{
-        id: string;
-        title: string;
-        content: string;
-        lastUpdatedOn: string;
-        tags?: string[];
-        category?: string;
-        chapter?: string;
-    }> | null; // can be null when encrypted
+    poems?: Poem[] | null; // can be null when encrypted
     updated_at: string;
     created_at: string;
-}
+};
 
 export async function getNotebook(
     userId: string,
