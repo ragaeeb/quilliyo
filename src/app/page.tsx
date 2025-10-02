@@ -1,11 +1,12 @@
 'use client';
 
 import { format } from 'date-fns';
-import { Lock, LogOut, Plus, Save, Search, Trash2, Unlock } from 'lucide-react';
+import { Lock, LogOut, Mic, Plus, Save, Search, Trash2, Unlock } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
 import { EncryptionDialog } from '@/components/EncryptionDialog';
+import { PodcastModal } from '@/components/PodcastModal';
 import PoemCard from '@/components/PoemCard';
 import { PoemEditModal } from '@/components/PoemEditModal';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -41,6 +42,7 @@ export default function Home() {
     const [selectedPoem, setSelectedPoem] = useState<Poem | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [isPodcastModalOpen, setIsPodcastModalOpen] = useState(false);
 
     const handleLogout = async () => {
         try {
@@ -88,6 +90,17 @@ export default function Home() {
         setSelectedPoem(poem);
         setIsModalOpen(true);
     }, []);
+
+    const openPodcastModal = useCallback(() => {
+        const selectedPoems = notebook.poems.filter((p) => selectedIds.has(p.id));
+        if (selectedPoems.length === 0) {
+            toast.error('Please select at least one poem');
+            return;
+        }
+        setIsPodcastModalOpen(true);
+    }, [selectedIds, notebook.poems]);
+
+    const selectedPoems = notebook.poems.filter((p) => selectedIds.has(p.id));
 
     return (
         <div className="container mx-auto p-8">
@@ -140,10 +153,16 @@ export default function Home() {
                         New Poem
                     </Button>
                     {selectedIds.size > 0 && (
-                        <Button onClick={deleteSelected} variant="destructive">
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete ({selectedIds.size})
-                        </Button>
+                        <>
+                            <Button onClick={openPodcastModal} variant="secondary">
+                                <Mic className="mr-2 h-4 w-4" />
+                                Podcast ({selectedIds.size})
+                            </Button>
+                            <Button onClick={deleteSelected} variant="destructive">
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete ({selectedIds.size})
+                            </Button>
+                        </>
                     )}
                 </div>
             </div>
@@ -171,6 +190,12 @@ export default function Home() {
                 allTags={allTags}
                 allCategories={allCategories}
                 allChapters={allChapters}
+            />
+
+            <PodcastModal
+                isOpen={isPodcastModalOpen}
+                onClose={() => setIsPodcastModalOpen(false)}
+                poems={selectedPoems}
             />
 
             <EncryptionDialog
