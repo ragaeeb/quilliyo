@@ -1,5 +1,6 @@
 import { MessageSquare } from 'lucide-react';
 import { memo, useCallback, useRef } from 'react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -13,6 +14,7 @@ import type { Poem, Thought } from '@/types/notebook';
 import ContentEditor from './ContentEditor';
 import FontSizeControl from './FontSizeControl';
 import MetadataForm from './MetadataForm';
+import { RevisionViewer } from './RevisionViewer';
 import ThoughtDrawer from './ThoughtDrawer';
 
 interface PoemEditModalProps {
@@ -47,6 +49,8 @@ export const PoemEditModal = memo(function PoemEditModal({
         setCategory,
         chapter,
         setChapter,
+        showRevisions,
+        setShowRevisions,
         urls,
         setUrls,
         thoughts,
@@ -77,6 +81,11 @@ export const PoemEditModal = memo(function PoemEditModal({
     } = useThoughtDrawer();
 
     const { saveThought, deleteThought, getRelatedThoughts } = useThoughtActions(thoughts, setThoughts);
+
+    const handleRestoreRevision = (revisionContent: string) => {
+        setContent(revisionContent);
+        toast.success('Revision restored!');
+    };
 
     const handleAddThought = useCallback(() => {
         const range = getSelectedRange();
@@ -224,7 +233,12 @@ export const PoemEditModal = memo(function PoemEditModal({
                     </div>
                 </DialogContent>
             </Dialog>
-
+            <RevisionViewer
+                poem={poem}
+                isOpen={showRevisions}
+                onClose={() => setShowRevisions(false)}
+                onRestore={handleRestoreRevision}
+            />
             <ThoughtDrawer
                 isOpen={isDrawerOpen}
                 onOpenChange={setIsDrawerOpen}

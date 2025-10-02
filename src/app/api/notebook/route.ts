@@ -14,10 +14,10 @@ const authenticateRequest = async () => {
         if (authError) {
             console.error('Authentication error:', authError);
         }
-        return { user: null, error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
+        return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }), user: null };
     }
 
-    return { user, error: null };
+    return { error: null, user };
 };
 
 export async function GET(request: NextRequest) {
@@ -79,16 +79,16 @@ export async function POST(request: NextRequest) {
             const jsonData = JSON.stringify(data, null, 2);
             const encryptedData = encrypt(jsonData, encryptionKey);
             dataToSave = {
-                encrypted: true,
                 data: encryptedData,
+                encrypted: true,
                 poems: null, // Clear unencrypted poems
             };
         } else {
             // Unencrypted: store in 'poems' field, clear 'data'
             dataToSave = {
+                data: null, // Clear encrypted data
                 encrypted: false,
                 poems: data.poems,
-                data: null, // Clear encrypted data
             };
         }
 
@@ -97,6 +97,6 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: true, timestamp: new Date().toISOString() });
     } catch (error) {
         console.error('Error saving notebook:', error);
-        return NextResponse.json({ success: false, error: String(error) }, { status: 500 });
+        return NextResponse.json({ error: String(error), success: false }, { status: 500 });
     }
 }

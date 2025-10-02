@@ -1,4 +1,4 @@
-import type { Poem, Thought } from '@/types/notebook';
+import type { Poem, PoemMetadata, Thought } from '@/types/notebook';
 
 export function buildPoemForSave(
     poem: Poem | null,
@@ -36,15 +36,7 @@ export function buildPoemForSave(
         cleanPoem.lastUpdatedOn = new Date().toISOString();
     }
 
-    const metadata: any = { ...(poem?.metadata || {}) };
-
-    if (urls.length > 0) {
-        metadata.urls = urls.join('\n');
-    }
-
-    if (thoughts.length > 0) {
-        metadata.thoughts = JSON.stringify(thoughts);
-    }
+    const metadata: PoemMetadata = { ...(poem?.metadata || {}), thoughts, urls };
 
     if (Object.keys(metadata).length > 0) {
         cleanPoem.metadata = metadata;
