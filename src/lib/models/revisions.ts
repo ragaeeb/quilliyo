@@ -21,9 +21,10 @@ export async function getRevisionsList(
     }
 
     // Transform to list items with preview
+    // Transform to list items with preview
     return (data || []).map((revision) => ({
         created_at: revision.created_at,
-        preview: revision.content.slice(0, 100),
+        preview: (revision.content || '').slice(0, 100),
         revision_number: revision.revision_number,
         title: revision.title,
     }));
