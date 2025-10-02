@@ -30,6 +30,15 @@ export function useNotebook() {
                     return;
                 }
 
+                // Check if the notebook is encrypted but we don't have the key
+                if (data.encrypted && !encryptionKey) {
+                    setIsEncrypted(true);
+                    setShowEncryptionDialog(true); // Show dialog to get key
+                    setNotebook({ poems: [] });
+                    setLastSaved(null);
+                    return;
+                }
+
                 // Successfully loaded (either unencrypted, or decrypted with key)
                 setNotebook(data);
                 setShowEncryptionDialog(false);
