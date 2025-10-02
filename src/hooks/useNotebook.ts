@@ -29,7 +29,6 @@ export function useNotebook() {
                     setLastSaved(null);
                     return;
                 }
-                }
 
                 // Successfully loaded (either unencrypted, or decrypted with key)
                 setNotebook(data);
