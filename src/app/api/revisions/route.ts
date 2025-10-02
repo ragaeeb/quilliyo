@@ -16,7 +16,11 @@ const getRevisionsHandler = async (request: NextRequest, { user }: { user: any }
 
         // If revisionNumber is provided, fetch specific revision
         if (revisionNumber) {
-            const revision = await getRevision(user.id, notebookId, poemId, parseInt(revisionNumber, 10));
+            const revNum = parseInt(revisionNumber, 10);
+            if (isNaN(revNum) || revNum < 1) {
+                return NextResponse.json({ error: 'Invalid revisionNumber' }, { status: 400 });
+            }
+            const revision = await getRevision(user.id, notebookId, poemId, revNum);
 
             if (!revision) {
                 return NextResponse.json({ error: 'Revision not found' }, { status: 404 });
