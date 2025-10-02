@@ -1,32 +1,9 @@
 import { type NextRequest, NextResponse } from 'next/server';
+import { withAuth } from '@/lib/middleware/authMiddleware';
 import { DEFAULT_NOTEBOOK_ID } from '@/lib/models/notebook';
 import { getRevision, getRevisionsList } from '@/lib/models/revisions';
-import { createClient } from '@/lib/supabase/server';
 
-const authenticateRequest = async () => {
-    const supabase = await createClient();
-    const {
-        data: { user },
-        error: authError,
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-        if (authError) {
-            console.error('Authentication error:', authError);
-        }
-        return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }), user: null };
-    }
-
-    return { error: null, user };
-};
-
-export async function GET(request: NextRequest) {
-    const { user, error } = await authenticateRequest();
-
-    if (error) {
-        return error;
-    }
-
+const getRevisionsHandler = async (request: NextRequest, { user }: { user: any }) => {
     try {
         const searchParams = request.nextUrl.searchParams;
         const notebookId = searchParams.get('notebookId') || DEFAULT_NOTEBOOK_ID;
@@ -56,4 +33,6 @@ export async function GET(request: NextRequest) {
         console.error('Error fetching revisions:', error);
         return NextResponse.json({ error: 'Failed to fetch revisions' }, { status: 500 });
     }
-}
+};
+
+export const GET = withAuth(getRevisionsHandler);
