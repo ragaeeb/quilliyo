@@ -1,4 +1,8 @@
-export const PODCAST_STYLES = { debate: 'Debate Discussion', 'expert-analysis': 'Expert Analysis' } as const;
+export const PODCAST_STYLES = {
+    debate: 'Debate Discussion',
+    'expert-analysis': 'Expert Analysis',
+    'heated-debate': 'Heated Debate',
+} as const;
 
 export type PodcastStyle = keyof typeof PODCAST_STYLES;
 

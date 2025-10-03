@@ -1,4 +1,5 @@
 import { createUserContent, GoogleGenAI } from '@google/genai';
+import { getNextKey } from '../apiKeyManager';
 import type { TranscriptSegment, VoiceConfig } from './utils';
 
 type TTSModels = 'gemini-2.5-flash-preview-tts' | 'gemini-2.5-pro-preview-tts';
@@ -45,6 +46,31 @@ const pcmToWav = (pcmData: ArrayBuffer): ArrayBuffer => {
 };
 
 /**
+ * Mix two PCM buffers by averaging their samples
+ */
+const mixPCMBuffers = (pcm1: ArrayBuffer, pcm2: ArrayBuffer): ArrayBuffer => {
+    const data1 = new Int16Array(pcm1);
+    const data2 = new Int16Array(pcm2);
+
+    // Use the longer buffer as the base length
+    const maxLength = Math.max(data1.length, data2.length);
+    const mixed = new Int16Array(maxLength);
+
+    // Mix the audio samples
+    for (let i = 0; i < maxLength; i++) {
+        const sample1 = i < data1.length ? data1[i] : 0;
+        const sample2 = i < data2.length ? data2[i] : 0;
+
+        // Average the samples and clamp to prevent clipping
+        let mixedSample = (sample1 + sample2) / 2;
+        mixedSample = Math.max(-32768, Math.min(32767, mixedSample));
+        mixed[i] = mixedSample;
+    }
+
+    return mixed.buffer;
+};
+
+/**
  * Synthesize speech and return raw PCM data
  */
 const synthesizeSpeechPCM = async (
@@ -55,7 +81,7 @@ const synthesizeSpeechPCM = async (
 ): Promise<ArrayBuffer> => {
     const client = new GoogleGenAI({ apiKey });
 
-    console.log('Generating audio with voice', voiceName, 'model', model);
+    console.log('Generating audio with voice', voiceName, 'model', model, 'and API key', apiKey.slice(5));
     const result = await client.models.generateContent({
         config: {
             responseModalities: ['AUDIO'],
@@ -99,19 +125,67 @@ export const synthesizeSpeech = async (
 export const synthesizeDebateSegments = async (
     segments: TranscriptSegment[],
     voiceConfig: VoiceConfig,
-    apiKey: string,
 ): Promise<ArrayBuffer[]> => {
     console.log('synthesizeDebateSegments - collecting PCM buffers');
 
     // Collect raw PCM buffers (without WAV headers)
     const pcmBuffers: ArrayBuffer[] = [];
+    const overlapGroups = new Map<number, TranscriptSegment[]>();
 
+    // Group segments by overlap
     for (const segment of segments) {
-        const voiceName =
-            segment.speaker === 'SPEAKER_1' ? voiceConfig.speaker1 || 'puck' : voiceConfig.speaker2 || 'charon';
+        if (segment.isOverlap && segment.overlapGroup !== undefined) {
+            if (!overlapGroups.has(segment.overlapGroup)) {
+                overlapGroups.set(segment.overlapGroup, []);
+            }
+            overlapGroups.get(segment.overlapGroup)!.push(segment);
+        }
+    }
 
-        const pcmBuffer = await synthesizeSpeechPCM(segment.text, voiceName, apiKey);
-        pcmBuffers.push(pcmBuffer);
+    // Process segments and collect PCM buffers
+    let i = 0;
+    while (i < segments.length) {
+        const segment = segments[i];
+
+        if (segment.isOverlap && segment.overlapGroup !== undefined) {
+            // Find all segments in this overlap group
+            const groupSegments = overlapGroups.get(segment.overlapGroup)!;
+            const speaker1Segment = groupSegments.find((s) => s.speaker === 'SPEAKER_1');
+            const speaker2Segment = groupSegments.find((s) => s.speaker === 'SPEAKER_2');
+
+            if (speaker1Segment && speaker2Segment) {
+                // Generate audio for both speakers
+                const voice1 = voiceConfig.speaker1 || 'puck';
+                const voice2 = voiceConfig.speaker2 || 'charon';
+
+                console.log(`Generating overlap group ${segment.overlapGroup} with voices ${voice1} and ${voice2}`);
+
+                const [pcm1, pcm2] = await Promise.all([
+                    synthesizeSpeechPCM(speaker1Segment.text, voice1, getNextKey()),
+                    synthesizeSpeechPCM(speaker2Segment.text, voice2, getNextKey()),
+                ]);
+
+                // Mix the PCM buffers
+                const mixedPCM = mixPCMBuffers(pcm1, pcm2);
+                pcmBuffers.push(mixedPCM);
+
+                console.log(`Mixed overlap group ${segment.overlapGroup}: ${mixedPCM.byteLength} bytes PCM`);
+            }
+
+            // Skip all segments in this overlap group
+            while (i < segments.length && segments[i].overlapGroup === segment.overlapGroup) {
+                i++;
+            }
+        } else {
+            // Regular segment - get PCM only
+            const voiceName =
+                segment.speaker === 'SPEAKER_1' ? voiceConfig.speaker1 || 'puck' : voiceConfig.speaker2 || 'charon';
+
+            const pcmBuffer = await synthesizeSpeechPCM(segment.text, voiceName, getNextKey());
+            pcmBuffers.push(pcmBuffer);
+            console.log(`Generated segment: ${pcmBuffer.byteLength} bytes PCM`);
+            i++;
+        }
     }
 
     console.log(`Collected ${pcmBuffers.length} PCM segments`);

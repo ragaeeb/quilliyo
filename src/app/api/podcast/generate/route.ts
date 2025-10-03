@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server';
+import { getNextKey } from '@/lib/apiKeyManager';
 import { withAuth } from '@/lib/middleware/authMiddleware';
 import * as AzureTTS from '@/lib/tts/azure';
 import * as GeminiTTS from '@/lib/tts/gemini';
@@ -49,12 +50,6 @@ const generateWithAzureSpeech = async (transcript: string, voiceConfig?: VoiceCo
 };
 
 const generateWithGeminiTTS = async (transcript: string, voiceConfig?: VoiceConfig) => {
-    const apiKey = process.env.GOOGLE_API_KEY;
-
-    if (!apiKey) {
-        return NextResponse.json({ error: 'Google API key not configured' }, { status: 500 });
-    }
-
     try {
         const isDebate = isDebateTranscript(transcript);
         let audioBuffer: ArrayBuffer;
@@ -65,11 +60,11 @@ const generateWithGeminiTTS = async (transcript: string, voiceConfig?: VoiceConf
                 return NextResponse.json({ error: 'Failed to parse debate transcript' }, { status: 500 });
             }
 
-            const audioBuffers = await GeminiTTS.synthesizeDebateSegments(segments, voiceConfig || {}, apiKey);
+            const audioBuffers = await GeminiTTS.synthesizeDebateSegments(segments, voiceConfig || {});
             audioBuffer = combineAudioBuffers(audioBuffers);
         } else {
             const voiceName = voiceConfig?.narrator || 'aoede';
-            audioBuffer = await GeminiTTS.synthesizeSpeech(transcript, voiceName, apiKey);
+            audioBuffer = await GeminiTTS.synthesizeSpeech(transcript, voiceName, getNextKey());
         }
 
         if (voiceConfig?.outputFilePath) {

@@ -23,7 +23,7 @@ export const VoiceSelector = ({
     onSpeaker1Change,
     onSpeaker2Change,
 }: VoiceSelectorProps) => {
-    const isDebateStyle = style === 'debate';
+    const isDebateStyle = style === 'debate' || style === 'heated-debate';
     const voices = platform === 'google-gemini' ? GEMINI_VOICES : AZURE_VOICES;
 
     if (isDebateStyle) {
