@@ -10,8 +10,8 @@ export const synthesizeSpeech = async (
     model?: TTSModels,
 ): Promise<ArrayBuffer> => {
     const client = new GoogleGenAI({ apiKey });
-    console.log('list models', await client.models.list());
 
+    console.log('Generating audio with voice', voiceName, 'model', model);
     const result = await client.models.generateContent({
         config: {
             responseModalities: ['AUDIO'],
@@ -20,6 +20,8 @@ export const synthesizeSpeech = async (
         contents: createUserContent([text]),
         model: model || 'gemini-2.5-flash-preview-tts',
     });
+
+    console.log('Content received');
 
     // Extract audio data from response
     const audioData = result.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
@@ -38,13 +40,16 @@ export const synthesizeDebateSegments = async (
 ): Promise<ArrayBuffer[]> => {
     const audioBuffers: ArrayBuffer[] = [];
 
+    console.log('synthesizeDebateSegments');
     for (const segment of segments) {
         const voiceName =
-            segment.speaker === 'SPEAKER_1' ? voiceConfig.speaker1 || 'Puck' : voiceConfig.speaker2 || 'Charon';
+            segment.speaker === 'SPEAKER_1' ? voiceConfig.speaker1 || 'puck' : voiceConfig.speaker2 || 'charon';
 
         const buffer = await synthesizeSpeech(segment.text, voiceName, apiKey);
         audioBuffers.push(buffer);
     }
+
+    console.log('Finished with total', audioBuffers.length);
 
     return audioBuffers;
 };

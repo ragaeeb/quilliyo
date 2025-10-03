@@ -35,10 +35,10 @@ export const PodcastModal = ({ isOpen, onClose, poems }: PodcastModalProps) => {
     const [isGeneratingTranscript, setIsGeneratingTranscript] = useState(false);
     const [isGeneratingPodcast, setIsGeneratingPodcast] = useState(false);
 
-    // Voice selections - using generic names
-    const [narratorVoice, setNarratorVoice] = useState(platform === 'google-gemini' ? 'Aoede' : 'en-US-AriaNeural');
-    const [speaker1Voice, setSpeaker1Voice] = useState(platform === 'google-gemini' ? 'Puck' : 'en-US-GuyNeural');
-    const [speaker2Voice, setSpeaker2Voice] = useState(platform === 'google-gemini' ? 'Charon' : 'en-US-JennyNeural');
+    // Voice selections - using lowercase for Gemini
+    const [narratorVoice, setNarratorVoice] = useState(platform === 'google-gemini' ? 'aoede' : 'en-US-AriaNeural');
+    const [speaker1Voice, setSpeaker1Voice] = useState(platform === 'google-gemini' ? 'puck' : 'en-US-GuyNeural');
+    const [speaker2Voice, setSpeaker2Voice] = useState(platform === 'google-gemini' ? 'charon' : 'en-US-JennyNeural');
 
     const [audioEl, setAudioEl] = useState<HTMLAudioElement | null>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -48,9 +48,9 @@ export const PodcastModal = ({ isOpen, onClose, poems }: PodcastModalProps) => {
     const handlePlatformChange = (newPlatform: TTSPlatform) => {
         setPlatform(newPlatform);
         if (newPlatform === 'google-gemini') {
-            setNarratorVoice('Aoede');
-            setSpeaker1Voice('Puck');
-            setSpeaker2Voice('Charon');
+            setNarratorVoice('aoede');
+            setSpeaker1Voice('puck');
+            setSpeaker2Voice('charon');
         } else {
             setNarratorVoice('en-US-AriaNeural');
             setSpeaker1Voice('en-US-GuyNeural');

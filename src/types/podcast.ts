@@ -13,15 +13,34 @@ export const AI_MODELS = {
 
 export type AIModel = keyof typeof AI_MODELS;
 
-// Gemini TTS Voices
+// Gemini TTS Voices (all lowercase as required by API)
 export const GEMINI_VOICES = {
-    'Energetic & Dynamic': { Orbit: 'Orbit (Neutral, Energetic)', Puck: 'Puck (Male, Playful)' },
-    'Narrative & Storytelling': {
-        Aoede: 'Aoede (Female, Expressive)',
-        Charon: 'Charon (Male, Calm)',
-        Fenrir: 'Fenrir (Male, Deep)',
-        Kore: 'Kore (Female, Warm)',
+    'Additional Voices': {
+        achernar: 'Achernar',
+        achird: 'Achird',
+        algenib: 'Algenib',
+        algieba: 'Algieba',
+        alnilam: 'Alnilam',
+        autonoe: 'Autonoe',
+        callirrhoe: 'Callirrhoe',
+        enceladus: 'Enceladus',
+        erinome: 'Erinome',
+        gacrux: 'Gacrux',
+        iapetus: 'Iapetus',
+        laomedeia: 'Laomedeia',
+        pulcherrima: 'Pulcherrima',
+        rasalgethi: 'Rasalgethi',
+        sadachbia: 'Sadachbia',
+        sadaltager: 'Sadaltager',
+        schedar: 'Schedar',
+        sulafat: 'Sulafat',
+        vindemiatrix: 'Vindemiatrix',
+        zephyr: 'Zephyr',
+        zubenelgenubi: 'Zubenelgenubi',
     },
+    'Calm & Professional': { charon: 'Charon (Calm)', despina: 'Despina (Gentle)', umbriel: 'Umbriel (Smooth)' },
+    'Expressive & Dynamic': { fenrir: 'Fenrir (Deep)', orus: 'Orus (Energetic)', puck: 'Puck (Playful)' },
+    'Warm & Narrative': { aoede: 'Aoede (Expressive)', kore: 'Kore (Warm)', leda: 'Leda (Friendly)' },
 } as const;
 
 // Azure Neural Voices

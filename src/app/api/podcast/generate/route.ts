@@ -68,7 +68,7 @@ const generateWithGeminiTTS = async (transcript: string, voiceConfig?: VoiceConf
             const audioBuffers = await GeminiTTS.synthesizeDebateSegments(segments, voiceConfig || {}, apiKey);
             audioBuffer = combineAudioBuffers(audioBuffers);
         } else {
-            const voiceName = voiceConfig?.narrator || 'Aoede';
+            const voiceName = voiceConfig?.narrator || 'aoede';
             audioBuffer = await GeminiTTS.synthesizeSpeech(transcript, voiceName, apiKey);
         }
 
@@ -88,7 +88,8 @@ const handler = async (request: NextRequest) => {
         const { transcript, platform, voiceConfig }: PodcastGenerationRequest = await request.json();
 
         if (platform === 'google-gemini') {
-            return generateWithGeminiTTS(transcript, voiceConfig);
+            console.log('Generating podcast with Gemini');
+            return generateWithGeminiTTS(transcript, { ...voiceConfig, outputFilePath: 'output.mp3' });
         }
         return generateWithAzureSpeech(transcript, voiceConfig);
     } catch (error) {
