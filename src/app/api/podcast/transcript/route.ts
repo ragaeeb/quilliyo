@@ -34,7 +34,7 @@ Generate the complete transcript:`;
 const generateDebatePrompt = (poems: TranscriptGenerationRequest['poems']) => {
     const poemTexts = poems.map((p) => `Title: "${p.title}"\n${p.content}`).join('\n\n---\n\n');
 
-    return `Create a natural, engaging 10-minute podcast transcript featuring two expert poetry analysts (ALEX and JORDAN) debating the following poem(s).
+    return `Create a natural, engaging 10-minute podcast transcript featuring two expert poetry analysts (SPEAKER_1 and SPEAKER_2) debating the following poem(s).
 
 CRITICAL REQUIREMENTS:
 - DO NOT mention any music, sound effects, intro music, outro music, or background sounds
@@ -51,8 +51,8 @@ The transcript should:
 - End with each summarizing their position (spoken words only)
 
 Format as:
-ALEX: [their spoken dialogue]
-JORDAN: [their spoken dialogue]
+SPEAKER_1: [their spoken dialogue]
+SPEAKER_2: [their spoken dialogue]
 
 Use "..." for pauses, and include natural speech patterns. ONLY include spoken words - no music cues or sound effect descriptions.
 
