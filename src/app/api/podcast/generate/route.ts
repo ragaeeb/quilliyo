@@ -11,10 +11,9 @@ const generateWithGeminiTTS = async (transcript: string) => {
     );
 };
 
-const generateWithAzureSpeech = async (
-    transcript: string,
-    voiceConfig?: { alex?: string; jordan?: string; narrator?: string },
-) => {
+type VoiceConfig = { alex?: string; jordan?: string; narrator?: string; outputFilePath?: string };
+
+const generateWithAzureSpeech = async (transcript: string, voiceConfig?: VoiceConfig) => {
     const apiKey = process.env.AZURE_SPEECH_KEY;
     const region = process.env.AZURE_SPEECH_REGION || 'eastus';
 
@@ -65,12 +64,13 @@ const generateWithAzureSpeech = async (
             const combinedBuffer = combineAudioBuffers(audioBuffers);
             const base64Audio = Buffer.from(combinedBuffer).toString('base64');
 
-            const timestamp = Date.now();
-            const filePath = join(process.cwd(), 'public', `podcast-${timestamp}.mp3`);
-            await writeFile(filePath, Buffer.from(combinedBuffer));
-            console.log(`Saved podcast to: ${filePath}`);
+            if (voiceConfig?.outputFilePath) {
+                const filePath = join(process.cwd(), voiceConfig.outputFilePath);
+                await writeFile(filePath, Buffer.from(combinedBuffer));
+                console.log(`Saved podcast to: ${filePath}`);
+            }
 
-            return NextResponse.json({ audioBase64: base64Audio, audioUrl: `/podcast-${timestamp}.mp3` });
+            return NextResponse.json({ audioBase64: base64Audio });
         } else {
             const voice = voiceConfig?.narrator || 'en-US-AriaNeural';
             const ssml = createSSML(transcript, voice);
@@ -94,12 +94,13 @@ const generateWithAzureSpeech = async (
             const audioBuffer = await response.arrayBuffer();
             const base64Audio = Buffer.from(audioBuffer).toString('base64');
 
-            const timestamp = Date.now();
-            const filePath = join(process.cwd(), 'public', `podcast-${timestamp}.mp3`);
-            await writeFile(filePath, Buffer.from(audioBuffer));
-            console.log(`Saved podcast to: ${filePath}`);
+            if (voiceConfig?.outputFilePath) {
+                const filePath = join(process.cwd(), voiceConfig.outputFilePath);
+                await writeFile(filePath, Buffer.from(audioBuffer));
+                console.log(`Saved podcast to: ${filePath}`);
+            }
 
-            return NextResponse.json({ audioBase64: base64Audio, audioUrl: `/podcast-${timestamp}.mp3` });
+            return NextResponse.json({ audioBase64: base64Audio });
         }
     } catch (error) {
         console.error('Azure TTS error:', error);
