@@ -9,7 +9,7 @@
 ![GitHub License](https://img.shields.io/github/license/ragaeeb/quilliyo)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A secure, modern web application for managing poetry and creative writing with built-in encryption, tagging, and annotation features.
+A secure, modern web application for managing poetry and creative writing with built-in encryption, tagging, annotation, and AI-powered podcast generation features.
 
 ## Features
 
@@ -23,12 +23,25 @@ A secure, modern web application for managing poetry and creative writing with b
 - Rich metadata support (tags, categories, chapters)
 - Date tracking for creation and updates
 - URL references for inspiration sources
+- Multi-selection for batch operations
 
 ### 💭 **Thought Annotations**
 - Add contextual thoughts/notes to specific text selections within poems
 - Support for multiple thoughts on the same text
 - Visual highlighting of annotated passages
 - Edit and manage thoughts over time
+
+### 🎙️ **AI-Powered Podcast Generation**
+- Generate engaging podcast episodes from your poems
+- Two podcast styles:
+  - **Expert Analysis**: Single narrator providing deep literary analysis
+  - **Debate Discussion**: Two AI hosts (Alex & Jordan) debating interpretations
+- Powered by Google Gemini 2.5 Flash for transcript generation
+- Text-to-Speech via Azure Speech Services
+- Customizable voices for different speakers
+- Select multiple poems to create comprehensive episodes
+- Natural conversational flow with pauses and emphasis
+- Download generated podcast episodes as MP3 files
 
 ### 🎨 **User Experience**
 - Dark/light theme support
@@ -43,6 +56,8 @@ A secure, modern web application for managing poetry and creative writing with b
 - **Styling**: Tailwind CSS v4
 - **Authentication**: Supabase Auth
 - **Database**: Supabase (PostgreSQL)
+- **AI/ML**: Google Gemini 2.5 Flash (transcript generation)
+- **TTS**: Azure Speech Services
 - **UI Components**: Radix UI primitives with custom styling
 - **Development**: TypeScript, Biome (linting/formatting)
 
@@ -52,6 +67,8 @@ A secure, modern web application for managing poetry and creative writing with b
 
 - Node.js 18+ or Bun runtime
 - Supabase project (free tier available at https://supabase.com)
+- Google AI API key (for podcast transcript generation)
+- Azure Speech Services subscription (for text-to-speech)
 
 ### Installation
 
@@ -74,6 +91,13 @@ Create a `.env.local` file in the root directory:
 # Supabase
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+
+# Google AI (for podcast transcript generation)
+GOOGLE_API_KEY=your_google_ai_api_key
+
+# Azure Speech Services (for text-to-speech)
+AZURE_SPEECH_KEY=your_azure_speech_key
+AZURE_SPEECH_REGION=eastus  # or your preferred region
 ```
 
 4. Run the development server:
@@ -91,7 +115,10 @@ Open [http://localhost:3000](http://localhost:3000) to view the application.
 quilliyo/
 ├── app/                    # Next.js app directory
 │   ├── api/               # API routes
-│   │   └── notebook/      # Notebook CRUD operations
+│   │   ├── notebook/      # Notebook CRUD operations
+│   │   └── podcast/       # Podcast generation endpoints
+│   │       ├── transcript/ # AI transcript generation
+│   │       └── generate/  # TTS audio generation
 │   ├── auth/              # Authentication pages
 │   │   └── login/         # Login/signup page
 │   └── page.tsx           # Main application page
@@ -99,6 +126,7 @@ quilliyo/
 │   ├── ui/               # Reusable UI components
 │   ├── PoemEditModal.tsx # Poem editor with metadata
 │   ├── ContentEditor.tsx # Rich text editor with annotations
+│   ├── PodcastModal.tsx  # Podcast generation interface
 │   └── ...
 ├── hooks/                # Custom React hooks
 │   ├── useNotebook.ts   # Notebook state management
@@ -113,6 +141,8 @@ quilliyo/
 │       └── notebook.ts  # Notebook database operations
 ├── middleware.ts         # Supabase SSR middleware
 └── types/               # TypeScript type definitions
+    ├── notebook.ts      # Notebook and poem types
+    └── podcast.ts       # Podcast generation types
 ```
 
 ## Usage
@@ -138,6 +168,19 @@ quilliyo/
 3. Click "Add Thought"
 4. Enter your thought/note
 5. The text will be highlighted in the editor
+
+### Generating Podcasts
+
+1. Select one or more poems using the checkboxes
+2. Click the "Podcast" button in the toolbar
+3. Choose your podcast style:
+   - **Expert Analysis**: Single narrator providing literary analysis
+   - **Debate Discussion**: Two hosts debating the poem's meaning
+4. (Optional) Customize the voices for narrators/speakers
+5. Click "Generate Transcript" to create the script
+6. Review and edit the transcript if needed
+7. Click "Generate Audio" to create the podcast
+8. Download the generated MP3 file
 
 ### Encryption
 
@@ -211,14 +254,67 @@ CREATE TABLE notebooks (
 }
 ```
 
+## Deployment
+
+### Vercel Deployment Notes
+
+**⚠️ Important**: The current podcast generation implementation saves MP3 files to the `/public` folder, which **will not work** on Vercel's serverless environment. Vercel's filesystem is read-only and ephemeral.
+
+**Recommended Solutions for Production:**
+
+1. **Use a Cloud Storage Service** (Recommended):
+   - Store generated MP3 files in AWS S3, Google Cloud Storage, or Vercel Blob Storage
+   - Return signed URLs for downloads
+   - Automatically clean up old files
+
+2. **Stream Audio Directly**:
+   - Return the audio as a base64-encoded response
+   - Let the client handle the file download
+   - No server-side storage needed
+
+3. **Use Vercel Blob Storage**:
+   ```typescript
+   import { put } from '@vercel/blob';
+   const blob = await put(`podcast-${timestamp}.mp3`, audioBuffer, {
+     access: 'public',
+   });
+   return blob.url;
+   ```
+
+### Environment Variables for Vercel
+
+Set the following environment variables in your Vercel project settings:
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `GOOGLE_API_KEY`
+- `AZURE_SPEECH_KEY`
+- `AZURE_SPEECH_REGION`
+
+## API Endpoints
+
+### Podcast Generation
+
+**POST** `/api/podcast/transcript`
+- Generates a podcast transcript using Google Gemini
+- Body: `{ poems: Poem[], style: 'expert-analysis' | 'debate' }`
+- Returns: `{ transcript: string, duration: string }`
+
+**POST** `/api/podcast/generate`
+- Converts transcript to audio using Azure Speech Services
+- Body: `{ transcript: string, platform: 'azure-speech', voiceConfig?: {...} }`
+- Returns: `{ audioBase64: string, audioUrl: string }`
+
 ## Future Enhancements
 
+- Cloud storage integration for podcast files (AWS S3, Vercel Blob)
 - Multiple notebook support (foundation already in place)
 - Export options (PDF, Markdown, JSON)
 - Collaborative notebooks with sharing
 - Version history for poems
 - AI-powered writing suggestions
 - Mobile app companion
+- Podcast episode management and history
+- Custom voice training for personalized narration
 
 ## Contributing
 
@@ -234,4 +330,5 @@ Copyright (c) 2025 Ragaeeb Haq
 
 - Built with love for poets and creative writers
 - Inspired by the need for a secure, modern poetry management tool
+- Powered by Google Gemini and Azure Speech Services
 - Special thanks to all open-source contributors whose libraries made this possible
