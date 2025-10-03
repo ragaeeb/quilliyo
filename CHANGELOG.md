@@ -1,3 +1,10 @@
+# [1.3.0](https://github.com/ragaeeb/quilliyo/compare/v1.2.0...v1.3.0) (2025-10-03)
+
+
+### Features
+
+* **podcast:** Podcast support ([#4](https://github.com/ragaeeb/quilliyo/issues/4)) ([6262123](https://github.com/ragaeeb/quilliyo/commit/6262123e1592876a23e1c3ed5b08f8109bd1c784))
+
 # [1.2.0](https://github.com/ragaeeb/quilliyo/compare/v1.1.0...v1.2.0) (2025-10-02)
 
 
