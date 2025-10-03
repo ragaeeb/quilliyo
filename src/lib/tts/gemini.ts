@@ -44,7 +44,10 @@ const pcmToWav = (pcmData: ArrayBuffer): ArrayBuffer => {
     return wavData.buffer;
 };
 
-export const synthesizeSpeech = async (
+/**
+ * Synthesize speech and return raw PCM data
+ */
+const synthesizeSpeechPCM = async (
     text: string,
     voiceName: string,
     apiKey: string,
@@ -71,8 +74,21 @@ export const synthesizeSpeech = async (
         throw new Error('No audio data received from Gemini');
     }
 
-    // Convert base64 PCM to ArrayBuffer, then to WAV
+    // Convert base64 PCM to ArrayBuffer
     const pcmBuffer = Buffer.from(audioData, 'base64').buffer;
+
+    console.log(`Received PCM data: ${pcmBuffer.byteLength} bytes`);
+
+    return pcmBuffer;
+};
+
+export const synthesizeSpeech = async (
+    text: string,
+    voiceName: string,
+    apiKey: string,
+    model?: TTSModels,
+): Promise<ArrayBuffer> => {
+    const pcmBuffer = await synthesizeSpeechPCM(text, voiceName, apiKey, model);
     const wavBuffer = pcmToWav(pcmBuffer);
 
     console.log(`Converted PCM (${pcmBuffer.byteLength} bytes) to WAV (${wavBuffer.byteLength} bytes)`);
@@ -85,18 +101,38 @@ export const synthesizeDebateSegments = async (
     voiceConfig: VoiceConfig,
     apiKey: string,
 ): Promise<ArrayBuffer[]> => {
-    const audioBuffers: ArrayBuffer[] = [];
+    console.log('synthesizeDebateSegments - collecting PCM buffers');
 
-    console.log('synthesizeDebateSegments');
+    // Collect raw PCM buffers (without WAV headers)
+    const pcmBuffers: ArrayBuffer[] = [];
+
     for (const segment of segments) {
         const voiceName =
             segment.speaker === 'SPEAKER_1' ? voiceConfig.speaker1 || 'puck' : voiceConfig.speaker2 || 'charon';
 
-        const buffer = await synthesizeSpeech(segment.text, voiceName, apiKey);
-        audioBuffers.push(buffer);
+        const pcmBuffer = await synthesizeSpeechPCM(segment.text, voiceName, apiKey);
+        pcmBuffers.push(pcmBuffer);
     }
 
-    console.log('Finished with total', audioBuffers.length);
+    console.log(`Collected ${pcmBuffers.length} PCM segments`);
 
-    return audioBuffers;
+    // Combine all PCM buffers
+    const totalLength = pcmBuffers.reduce((sum, buf) => sum + buf.byteLength, 0);
+    const combinedPCM = new Uint8Array(totalLength);
+    let offset = 0;
+
+    for (const buffer of pcmBuffers) {
+        combinedPCM.set(new Uint8Array(buffer), offset);
+        offset += buffer.byteLength;
+    }
+
+    console.log(`Combined PCM data: ${combinedPCM.byteLength} bytes`);
+
+    // Convert the combined PCM to a single WAV file
+    const wavBuffer = pcmToWav(combinedPCM.buffer);
+
+    console.log(`Created final WAV file: ${wavBuffer.byteLength} bytes`);
+
+    // Return as a single-element array to maintain compatibility with existing code
+    return [wavBuffer];
 };

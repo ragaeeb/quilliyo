@@ -48,7 +48,7 @@ export const VoiceSelector = ({
                                         </div>
                                         {Object.entries(voiceOptions).map(([value, label]) => (
                                             <SelectItem key={value} value={value}>
-                                                {label}
+                                                {label as string}
                                             </SelectItem>
                                         ))}
                                     </div>
@@ -73,7 +73,7 @@ export const VoiceSelector = ({
                                         </div>
                                         {Object.entries(voiceOptions).map(([value, label]) => (
                                             <SelectItem key={value} value={value}>
-                                                {label}
+                                                {label as string}
                                             </SelectItem>
                                         ))}
                                     </div>
@@ -99,7 +99,7 @@ export const VoiceSelector = ({
                         <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                        {Object.entries(voices).map(([category, voiceOptions]) => (
+                        {Object.entries(voices).map(([category, voiceOptions]: [string, string]) => (
                             <div key={category}>
                                 <div className="px-2 py-1.5 font-semibold text-muted-foreground text-xs">
                                     {category}
