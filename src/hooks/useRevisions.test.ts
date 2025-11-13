@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useRevisions } from '@/hooks/useRevisions';
+import { useRevisions } from './useRevisions';
 
 declare global {
     // eslint-disable-next-line no-var
@@ -18,8 +18,8 @@ describe('useRevisions', () => {
 
     it('loads revisions when poemId is provided', async () => {
         fetchMock.mockResolvedValueOnce({
-            ok: true,
             json: () => Promise.resolve({ revisions: [{ revisionNumber: 1, summary: 'Summary' }] }),
+            ok: true,
         });
 
         const { result } = renderHook(() => useRevisions('poem-1'));
@@ -42,10 +42,10 @@ describe('useRevisions', () => {
 
     it('loads individual revisions and can clear selection', async () => {
         fetchMock
-            .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ revisions: [] }) })
+            .mockResolvedValueOnce({ json: () => Promise.resolve({ revisions: [] }), ok: true })
             .mockResolvedValueOnce({
+                json: () => Promise.resolve({ revision: { content: 'Full revision', revisionNumber: 2 } }),
                 ok: true,
-                json: () => Promise.resolve({ revision: { revisionNumber: 2, content: 'Full revision' } }),
             });
 
         const { result } = renderHook(() => useRevisions('poem-3'));
@@ -56,7 +56,7 @@ describe('useRevisions', () => {
             await result.current.loadRevision(2);
         });
 
-        expect(result.current.selectedRevision).toEqual({ revisionNumber: 2, content: 'Full revision' });
+        expect(result.current.selectedRevision).toEqual({ content: 'Full revision', revisionNumber: 2 });
 
         act(() => {
             result.current.clearSelectedRevision();

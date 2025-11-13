@@ -1,6 +1,6 @@
 import { renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { useTextSelection } from '@/hooks/useTextSelection';
+import { useTextSelection } from './useTextSelection';
 
 describe('useTextSelection', () => {
     it('returns the currently selected text range', () => {
@@ -19,7 +19,7 @@ describe('useTextSelection', () => {
 
         const { result } = renderHook(() => useTextSelection({ current: div }));
 
-        expect(result.current.getSelectedRange()).toEqual({ start: 0, end: 5, text: 'Hello' });
+        expect(result.current.getSelectedRange()).toEqual({ end: 5, start: 0, text: 'Hello' });
 
         selection?.removeAllRanges();
         document.body.removeChild(div);

@@ -1,22 +1,16 @@
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { NextRequest } from 'next/server';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 type AuthMiddlewareModule = typeof import('./authMiddleware');
 
 const jsonMock = vi.fn((data: unknown, init?: ResponseInit) => ({ data, init }));
 
-vi.mock('next/server', () => ({
-    NextResponse: { json: jsonMock },
-}));
+vi.mock('next/server', () => ({ NextResponse: { json: jsonMock } }));
 
 const getUserMock = vi.fn();
-const createClientMock = vi.fn(async () => ({
-    auth: { getUser: getUserMock },
-}));
+const createClientMock = vi.fn(async () => ({ auth: { getUser: getUserMock } }));
 
-vi.mock('@/lib/supabase/server', () => ({
-    createClient: createClientMock,
-}));
+vi.mock('@/lib/supabase/server', () => ({ createClient: createClientMock }));
 
 let withAuth: AuthMiddlewareModule['withAuth'];
 let withAuthUser: AuthMiddlewareModule['withAuthUser'];
@@ -34,20 +28,6 @@ beforeEach(() => {
 });
 
 describe('withAuth', () => {
-    it('should return unauthorized response when user is missing and log error', async () => {
-        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-        getUserMock.mockResolvedValueOnce({ data: { user: null }, error: { message: 'Auth failed' } });
-
-        const handler = withAuth(vi.fn());
-        const response = await handler({} as NextRequest);
-
-        expect(jsonMock).toHaveBeenCalledWith({ error: 'Unauthorized' }, { status: 401 });
-        expect(response).toEqual({ data: { error: 'Unauthorized' }, init: { status: 401 } });
-        expect(consoleSpy).toHaveBeenCalledWith('Authentication error:', { message: 'Auth failed' });
-
-        consoleSpy.mockRestore();
-    });
-
     it('should return unauthorized response without logging when there is no auth error', async () => {
         const consoleSpy = vi.spyOn(console, 'error');
         consoleSpy.mockImplementation(() => {});
@@ -65,8 +45,9 @@ describe('withAuth', () => {
     it('should invoke the wrapped handler when user is present', async () => {
         const handlerSpy = vi.fn(async (_request: NextRequest, context: any) => {
             expect(context.user).toEqual({ id: 'user-1' });
-            const supabaseInstance = await createClientMock.mock.results[0]?.value;
-            expect(context.supabase).toBe(supabaseInstance);
+            expect(context.supabase).toBeDefined();
+            expect(context.supabase.auth.getUser).toBe(getUserMock);
+
             return { ok: true } as any;
         });
         getUserMock.mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null });

@@ -1,16 +1,11 @@
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ComponentProps } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { PodcastModal } from '@/components/PodcastModal';
 import { toast } from 'sonner';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { PodcastModal } from './PodcastModal';
 
-vi.mock('sonner', () => ({
-    toast: {
-        success: vi.fn(),
-        error: vi.fn(),
-    },
-}));
+vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 
 vi.mock('@/components/podcast/AudioPlayer', () => ({
     AudioPlayer: ({ audioElement }: { audioElement: HTMLAudioElement | null }) => (
@@ -22,26 +17,25 @@ vi.mock('@/components/podcast/VoiceSelector', () => ({
     VoiceSelector: ({ narratorVoice, onNarratorChange }: any) => (
         <div>
             <div data-testid="voice-selector">Narrator: {narratorVoice}</div>
-            <button onClick={() => onNarratorChange('updated-narrator')}>Mock Change Voice</button>
+            <button type="button" onClick={() => onNarratorChange('updated-narrator')}>
+                Mock Change Voice
+            </button>
         </div>
     ),
 }));
 
 describe('PodcastModal', () => {
-    const poems = [
-        { id: '1', title: 'Poem One', content: 'Content', category: 'Cat', tags: ['tag'] },
-    ];
+    const poems = [{ category: 'Cat', content: 'Content', id: '1', tags: ['tag'], title: 'Poem One' }];
 
     const setup = (overrides: Partial<ComponentProps<typeof PodcastModal>> = {}) => {
         const onClose = vi.fn();
-        const utils = render(
-            <PodcastModal isOpen onClose={onClose} poems={poems as any} {...overrides} />,
-        );
+        const utils = render(<PodcastModal isOpen onClose={onClose} poems={poems as any} {...overrides} />);
         return { onClose, ...utils };
     };
 
     beforeEach(() => {
         vi.clearAllMocks();
+        vi.unstubAllGlobals();
     });
 
     it('updates default voices when platform changes', async () => {
@@ -60,10 +54,9 @@ describe('PodcastModal', () => {
 
     it('generates a transcript successfully', async () => {
         const user = userEvent.setup();
-        const fetchMock = vi.fn().mockResolvedValue({
-            ok: true,
-            json: () => Promise.resolve({ transcript: 'Generated transcript' }),
-        });
+        const fetchMock = vi
+            .fn()
+            .mockResolvedValue({ json: () => Promise.resolve({ transcript: 'Generated transcript' }), ok: true });
         global.fetch = fetchMock as unknown as typeof fetch;
 
         setup();
@@ -71,7 +64,13 @@ describe('PodcastModal', () => {
         const button = screen.getByRole('button', { name: /Generate Transcript/i });
         await user.click(button);
 
-        await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/podcast/transcript', expect.anything()));
+        await waitFor(() =>
+            expect(fetchMock).toHaveBeenCalledWith(
+                '/api/podcast/transcript',
+                expect.objectContaining({ body: expect.stringContaining('"title":"Poem One"'), method: 'POST' }),
+            ),
+        );
+
         expect(toast.success).toHaveBeenCalledWith('Transcript generated successfully');
         expect(screen.getByRole('textbox', { name: 'Transcript' })).toHaveValue('Generated transcript');
     });
@@ -109,20 +108,16 @@ describe('PodcastModal', () => {
         const user = userEvent.setup();
         const fetchMock = vi
             .fn()
-            .mockResolvedValueOnce({
-                ok: true,
-                json: () => Promise.resolve({ transcript: 'Generated transcript' }),
-            })
-            .mockResolvedValueOnce({
-                ok: true,
-                json: () => Promise.resolve({ audioBase64: 'YmFzZTY0' }),
-            });
+            .mockResolvedValueOnce({ json: () => Promise.resolve({ transcript: 'Generated transcript' }), ok: true })
+            .mockResolvedValueOnce({ json: () => Promise.resolve({ audioBase64: 'YmFzZTY0' }), ok: true });
         global.fetch = fetchMock as unknown as typeof fetch;
 
         setup();
 
         await user.click(screen.getByRole('button', { name: /Generate Transcript/i }));
-        await waitFor(() => expect(screen.getByRole('textbox', { name: 'Transcript' })).toHaveValue('Generated transcript'));
+        await waitFor(() =>
+            expect(screen.getByRole('textbox', { name: 'Transcript' })).toHaveValue('Generated transcript'),
+        );
 
         const generatePodcast = screen.getByRole('button', { name: /Generate Podcast/i });
         await user.click(generatePodcast);
@@ -145,7 +140,8 @@ describe('PodcastModal', () => {
         const { onClose } = setup();
 
         const closeButtons = screen.getAllByRole('button', { name: 'Close' });
-        const footerButton = closeButtons.find((button) => button.closest('[data-slot="dialog-footer"]')) ?? closeButtons[0];
+        const footerButton =
+            closeButtons.find((button) => button.closest('[data-slot="dialog-footer"]')) ?? closeButtons[0];
         await user.click(footerButton);
 
         expect(onClose).toHaveBeenCalled();

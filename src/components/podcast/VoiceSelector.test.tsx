@@ -31,6 +31,7 @@ describe('VoiceSelector', () => {
         await user.click(option);
 
         expect(onNarratorChange).toHaveBeenCalledWith('en-US-DavisNeural');
+        expect(narratorTrigger).toHaveTextContent('Aria');
     });
 
     it('renders separate speaker selections for debate styles', async () => {

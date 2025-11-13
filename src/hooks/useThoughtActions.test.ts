@@ -1,15 +1,10 @@
 import { renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { useThoughtActions } from '@/hooks/useThoughtActions';
+import { useThoughtActions } from './useThoughtActions';
 
 const toastError = vi.fn();
 
-vi.mock('sonner', () => ({
-    toast: {
-        error: (...args: unknown[]) => toastError(...args),
-        success: vi.fn(),
-    },
-}));
+vi.mock('sonner', () => ({ toast: { error: (...args: unknown[]) => toastError(...args), success: vi.fn() } }));
 
 afterEach(() => {
     toastError.mockClear();
@@ -34,7 +29,7 @@ describe('useThoughtActions', () => {
 
     it('updates an existing thought when editing', () => {
         let thoughts = [
-            { id: '1', text: 'Original', createdAt: '2024-01-01', startIndex: 0, endIndex: 5, selectedText: 'Hello' },
+            { createdAt: '2024-01-01', endIndex: 5, id: '1', selectedText: 'Hello', startIndex: 0, text: 'Original' },
         ];
         const setThoughts = vi.fn((updater: (prev: any[]) => any[]) => {
             thoughts = updater(thoughts);
@@ -58,15 +53,16 @@ describe('useThoughtActions', () => {
 
         const { result, rerender } = renderHook(() => useThoughtActions(thoughts, setThoughts));
 
-        const saved = result.current.saveThought('Fresh idea', null, { start: 0, end: 5, text: 'Hello' });
+        const saved = result.current.saveThought('Fresh idea', null, { end: 5, start: 0, text: 'Hello' });
 
         expect(saved).toBe(true);
         expect(thoughts).toHaveLength(1);
         expect(thoughts[0]).toMatchObject({
-            text: 'Fresh idea',
+            createdAt: '2024-04-01T12:00:00.000Z',
+            endIndex: 5,
             selectedText: 'Hello',
             startIndex: 0,
-            endIndex: 5,
+            text: 'Fresh idea',
         });
 
         rerender();
@@ -78,7 +74,7 @@ describe('useThoughtActions', () => {
 
     it('returns empty related thoughts for unknown ids', () => {
         const thoughts = [
-            { id: '1', text: 'Thought', createdAt: '2024-01-01', startIndex: 0, endIndex: 5, selectedText: 'Hello' },
+            { createdAt: '2024-01-01', endIndex: 5, id: '1', selectedText: 'Hello', startIndex: 0, text: 'Thought' },
         ];
         const setThoughts = vi.fn();
 

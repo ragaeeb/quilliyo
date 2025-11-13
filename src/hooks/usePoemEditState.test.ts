@@ -1,18 +1,18 @@
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { usePoemEditState } from '@/hooks/usePoemEditState';
+import { usePoemEditState } from './usePoemEditState';
 
 describe('usePoemEditState', () => {
     const basePoem = {
-        id: 'poem-1',
-        title: 'Original Title',
-        content: 'Original content',
-        tags: ['Inspiration'],
         category: 'Reflection',
         chapter: 'Chapter 1',
-        metadata: { urls: ['https://example.com'], thoughts: [] },
+        content: 'Original content',
         createdOn: '2024-01-01T00:00:00Z',
+        id: 'poem-1',
         lastUpdatedOn: '2024-01-02T00:00:00Z',
+        metadata: { thoughts: [], urls: ['https://example.com'] },
+        tags: ['Inspiration'],
+        title: 'Original Title',
     };
 
     it('initialises state from the provided poem', () => {
@@ -63,15 +63,15 @@ describe('usePoemEditState', () => {
 
         const nextPoem = {
             ...basePoem,
-            id: 'poem-2',
-            title: 'Incoming Title',
-            content: 'Incoming content',
-            tags: ['Hope'],
             category: 'Optimism',
             chapter: 'Chapter 3',
-            metadata: { urls: ['https://new.example'], thoughts: [] },
+            content: 'Incoming content',
             createdOn: '2024-03-04T00:00:00Z',
+            id: 'poem-2',
             lastUpdatedOn: '2024-03-05T00:00:00Z',
+            metadata: { thoughts: [], urls: ['https://new.example'] },
+            tags: ['Hope'],
+            title: 'Incoming Title',
         };
 
         rerender({ poem: nextPoem });

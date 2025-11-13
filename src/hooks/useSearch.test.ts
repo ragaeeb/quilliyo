@@ -1,11 +1,25 @@
-import { act, renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { useSearch } from '@/hooks/useSearch';
+import { useSearch } from './useSearch';
 
 describe('useSearch', () => {
     const poems = [
-        { id: '1', title: 'Sunrise', content: 'The sun rises', tags: ['Nature'], category: 'Morning', chapter: 'Daybreak' },
-        { id: '2', title: 'Nightfall', content: 'The night comes', tags: ['Nature'], category: 'Evening', chapter: 'Dusk' },
+        {
+            category: 'Morning',
+            chapter: 'Daybreak',
+            content: 'The sun rises',
+            id: '1',
+            tags: ['Nature'],
+            title: 'Sunrise',
+        },
+        {
+            category: 'Evening',
+            chapter: 'Dusk',
+            content: 'The night comes',
+            id: '2',
+            tags: ['Nature'],
+            title: 'Nightfall',
+        },
     ];
 
     afterEach(() => {
@@ -15,6 +29,7 @@ describe('useSearch', () => {
     it('returns all poems when there is no search query', () => {
         const { result } = renderHook(() => useSearch(poems as any));
         expect(result.current.filteredPoems).toHaveLength(2);
+        expect(result.current.searchQuery).toBe('');
     });
 
     it('debounces search updates and filters results', async () => {
@@ -32,6 +47,7 @@ describe('useSearch', () => {
 
         expect(result.current.filteredPoems).toHaveLength(1);
         expect(result.current.filteredPoems[0]?.id).toBe('1');
+        expect(result.current.searchQuery).toBe('sun');
 
         act(() => {
             result.current.setSearchQuery('');
