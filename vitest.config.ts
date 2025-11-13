@@ -15,6 +15,9 @@ export default defineConfig({
         setupFiles: ['./vitest.setup.ts'],
         css: false,
         exclude: configDefaults.exclude,
-        environmentMatchGlobs: [['src/lib/**/*.test.ts', 'node']],
+        environmentMatchGlobs: [
+            ['src/lib/**/*.test.ts', 'node'],
+            ['src/app/**/*.test.ts', 'node'],
+        ],
     },
 });
