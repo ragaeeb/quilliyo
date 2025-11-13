@@ -109,6 +109,13 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) to view the application.
 
+5. Run the automated test suite:
+```bash
+bun run test
+```
+
+The project uses [Vitest](https://vitest.dev/) together with [Testing Library](https://testing-library.com/) to validate hooks and React components.
+
 ## Project Structure
 
 ```
