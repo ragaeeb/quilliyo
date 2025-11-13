@@ -64,7 +64,7 @@
         "url": "git+https://github.com/ragaeeb/quilliyo.git"
     },
     "scripts": {
-        "build": "next build --turbopack",
+        "build": "next build",
         "dev": "next dev --turbopack",
         "format": "biome format --write",
         "lint": "biome check",
