@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, mock } from 'bun:test';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     DEFAULT_NOTEBOOK_ID,
     deleteNotebook,
@@ -8,24 +8,56 @@ import {
     upsertNotebook,
 } from './notebook';
 
-const mockSelect = mock(() => mockQuery);
-const mockEq = mock(() => mockQuery);
-const mockSingle = mock(() => Promise.resolve({ data: null, error: null }));
-const mockUpsert = mock(() => Promise.resolve({ error: null }));
-const mockOrder = mock(() => Promise.resolve({ data: [], error: null }));
-const mockDelete = mock(() => mockDeleteQuery);
+const supabaseMocks = vi.hoisted(() => {
+    const mockSelect = vi.fn();
+    const mockEq = vi.fn();
+    const mockSingle = vi.fn();
+    const mockUpsert = vi.fn();
+    const mockOrder = vi.fn();
+    const mockDelete = vi.fn();
+    const mockDeleteQuery = { eq: mockEq };
+    const mockQuery = { eq: mockEq, maybeSingle: mockSingle, order: mockOrder, select: mockSelect };
 
-const mockQuery = { eq: mockEq, maybeSingle: mockSingle, order: mockOrder, select: mockSelect };
+    mockSelect.mockImplementation(() => mockQuery);
+    mockEq.mockImplementation(() => mockQuery);
+    mockSingle.mockResolvedValue({ data: null, error: null });
+    mockUpsert.mockResolvedValue({ error: null });
+    mockOrder.mockResolvedValue({ data: [], error: null });
+    mockDelete.mockImplementation(() => mockDeleteQuery);
 
-const mockDeleteQuery = { eq: mockEq };
+    const mockFrom = vi.fn(() => ({ delete: mockDelete, select: mockSelect, upsert: mockUpsert }));
+    const mockSupabase = { from: mockFrom };
+    const mockCreateClient = vi.fn(() => Promise.resolve(mockSupabase));
 
-const mockFrom = mock(() => ({ delete: mockDelete, select: mockSelect, upsert: mockUpsert }));
+    return {
+        mockSelect,
+        mockEq,
+        mockSingle,
+        mockUpsert,
+        mockOrder,
+        mockDelete,
+        mockDeleteQuery,
+        mockQuery,
+        mockFrom,
+        mockSupabase,
+        mockCreateClient,
+    };
+});
 
-const mockSupabase = { from: mockFrom };
+const {
+    mockSelect,
+    mockEq,
+    mockSingle,
+    mockUpsert,
+    mockOrder,
+    mockDelete,
+    mockDeleteQuery,
+    mockQuery,
+    mockFrom,
+    mockCreateClient,
+} = supabaseMocks;
 
-const mockCreateClient = mock(() => Promise.resolve(mockSupabase));
-
-mock.module('@/lib/supabase/server', () => ({ createClient: mockCreateClient }));
+vi.mock('@/lib/supabase/server', () => ({ createClient: supabaseMocks.mockCreateClient }));
 
 describe('notebook.ts - Supabase Wrapper', () => {
     beforeEach(() => {
