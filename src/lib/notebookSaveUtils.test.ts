@@ -1,4 +1,4 @@
-import { describe, expect, it, mock } from 'bun:test';
+import { describe, expect, it, vi } from 'vitest';
 import {
     deleteRevisionsForDeletedPoems,
     findChangedPoems,
@@ -14,7 +14,7 @@ describe('prepareNotebookData', () => {
     it('should encrypt data when encryptionKey is provided', () => {
         const data = { poems: [{ content: 'Hello', id: '1', title: 'Test' }] };
         const encryptionKey = 'test-key';
-        const mockEncrypt = mock((data: string, key: string) => `encrypted:${data}`);
+        const mockEncrypt = vi.fn((data: string, key: string) => `encrypted:${data}`);
 
         const result = prepareNotebookData(data, encryptionKey, mockEncrypt);
 
@@ -26,7 +26,7 @@ describe('prepareNotebookData', () => {
 
     it('should not encrypt data when encryptionKey is null', () => {
         const data = { poems: [{ content: 'Hello', id: '1', title: 'Test' }] };
-        const mockEncrypt = mock(() => 'encrypted');
+        const mockEncrypt = vi.fn(() => 'encrypted');
 
         const result = prepareNotebookData(data, null, mockEncrypt);
 
@@ -182,7 +182,7 @@ describe('prepareRevisionInserts', () => {
 
 describe('deleteRevisionsForDeletedPoems', () => {
     it('should not call delete when no poems deleted', async () => {
-        const mockSupabase = { from: mock(() => ({ delete: mock() })) } as any;
+        const mockSupabase = { from: vi.fn(() => ({ delete: vi.fn() })) } as any;
 
         await deleteRevisionsForDeletedPoems(mockSupabase, 'user-123', 'notebook-456', []);
 
@@ -204,8 +204,8 @@ describe('deleteRevisionsForDeletedPoems', () => {
 
 describe('insertRevisions', () => {
     it('should call insert with correct parameters', async () => {
-        const mockInsert = mock(() => Promise.resolve({ error: null }));
-        const mockSupabase = { from: mock(() => ({ insert: mockInsert })) } as any;
+        const mockInsert = vi.fn(() => Promise.resolve({ error: null }));
+        const mockSupabase = { from: vi.fn(() => ({ insert: mockInsert })) } as any;
 
         const revisions = [
             { content: 'Content', notebook_id: 'notebook-456', poem_id: 'poem-1', title: 'Title', user_id: 'user-123' },
@@ -218,7 +218,7 @@ describe('insertRevisions', () => {
     });
 
     it('should not call insert when no revisions provided', async () => {
-        const mockSupabase = { from: mock(() => ({ insert: mock() })) } as any;
+        const mockSupabase = { from: vi.fn(() => ({ insert: vi.fn() })) } as any;
 
         await insertRevisions(mockSupabase, []);
 
@@ -238,8 +238,8 @@ describe('insertRevisions', () => {
 
 describe('upsertNotebookData', () => {
     it('should call upsert with correct parameters', async () => {
-        const mockUpsert = mock(() => Promise.resolve({ error: null }));
-        const mockSupabase = { from: mock(() => ({ upsert: mockUpsert })) } as any;
+        const mockUpsert = vi.fn(() => Promise.resolve({ error: null }));
+        const mockSupabase = { from: vi.fn(() => ({ upsert: mockUpsert })) } as any;
 
         const dataToSave = { encrypted: false, poems: [{ content: 'Content', id: '1', title: 'Test' }] };
 
